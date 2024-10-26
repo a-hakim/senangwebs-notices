@@ -21,7 +21,7 @@ SenangWebs Notices (SWN) is a lightweight JavaScript library that replaces nativ
 ### Using npm
 
 ```bash
-npm install senangwebs-notice
+npm install senangwebs-notices
 ```
 
 ### Using a CDN
@@ -29,7 +29,7 @@ npm install senangwebs-notice
 Include SenangWebs Notices directly in your HTML file using unpkg:
 
 ```html
-<script src="https://unpkg.com/senangwebs-notice@latest/dist/swn.js"></script>
+<script src="https://unpkg.com/senangwebs-notices@latest/dist/swn.js"></script>
 ```
 
 ## Usage
@@ -41,7 +41,7 @@ Include SenangWebs Notices directly in your HTML file using unpkg:
 <script src="path/to/swn.js"></script>
 
 <!-- Or if using unpkg -->
-<script src="https://unpkg.com/senangwebs-notice@latest/dist/swn.js"></script>
+<script src="https://unpkg.com/senangwebs-notices@latest/dist/swn.js"></script>
 ```
 
 2. Initialize the library:
