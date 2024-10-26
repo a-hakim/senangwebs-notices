@@ -1,6 +1,6 @@
 {
   "name": "senangwebs-notices",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Lightweight JavaScript library that replaces native browser dialogs (alert, confirm, prompt) with customizable, modern-looking notifications.",
   "main": "index.js",
   "directories": {
@@ -11,7 +11,7 @@
     "dev": "webpack --mode development --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["loading", "indicator", "web", "customizable"],
+  "keywords": ["alert", "confirm", "prompt", "notification", "web", "customizable"],
   "author": "a-hakim",
   "license": "MIT",
   "devDependencies": {
