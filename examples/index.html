@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SenangWebs Notice Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="p-8 bg-gray-50">
+    <h1 class="text-2xl font-bold mb-6">SenangWebs Notice Demo</h1>
+
+    <div class="space-y-8">
+        <!-- Native Function Replacement Section -->
+        <div>
+            <h2 class="text-xl font-semibold mb-4">Native Function Replacement</h2>
+            <div class="bg-white p-6 rounded-lg shadow-md space-y-4">
+                <div>
+                    <p class="mb-2 text-gray-600">Test native function replacements:</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="testAlert()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            Test alert()
+                        </button>
+                        <button onclick="testConfirm()"
+                            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                            Test confirm()
+                        </button>
+                        <button onclick="testPrompt()"
+                            class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                            Test prompt()
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <button onclick="toggleNativeFunctions()"
+                        class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+                        Toggle Native/Custom Functions
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Position Tests Section -->
+        <div>
+            <h2 class="text-xl font-semibold mb-4">Position Tests</h2>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="showNotice('center')"
+                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Center
+                    </button>
+                    <button onclick="showNotice('top')"
+                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Top
+                    </button>
+                    <button onclick="showNotice('top right')"
+                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Top Right
+                    </button>
+                    <button onclick="showNotice('bottom')"
+                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Bottom
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Style Tests Section -->
+        <div>
+            <h2 class="text-xl font-semibold mb-4">Style Tests</h2>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="showStyledNotice('blue')"
+                        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Blue Theme
+                    </button>
+                    <button onclick="showStyledNotice('red')"
+                        class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                        Red Theme
+                    </button>
+                    <button onclick="showStyledNotice('blur')"
+                        class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">
+                        Blur Effect
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Template -->
+    <template id="alert-template">
+        <div data-swn 
+             data-swn-position="center"
+             data-swn-bg-color="#000000"
+             data-swn-bg-opacity="0.5"
+             data-swn-bg-blur="3"
+             data-swn-z-index="9999"
+             class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-auto">
+            <div data-swn-title class="text-xl font-semibold text-gray-800 pb-3 border-b border-gray-200"></div>
+            <div data-swn-body class="py-4 text-gray-600"></div>
+            <div data-swn-buttons class="flex justify-end space-x-2">
+                <button data-swn-ok class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"></button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Confirm Template -->
+    <template id="confirm-template">
+        <div data-swn class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-auto">
+            <div data-swn-title class="text-xl font-semibold text-gray-800 pb-3 border-b border-gray-200"></div>
+            <div data-swn-body class="py-4 text-gray-600"></div>
+            <div data-swn-buttons class="flex justify-end space-x-2">
+                <button data-swn-cancel class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"></button>
+                <button data-swn-ok class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"></button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Prompt Template -->
+    <template id="prompt-template">
+        <div data-swn class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-auto">
+            <div data-swn-title class="text-xl font-semibold text-gray-800 pb-3 border-b border-gray-200"></div>
+            <div data-swn-body class="py-4 text-gray-600"></div>
+            <input type="text" data-swn-input class="w-full px-3 py-2 border rounded-md mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <div data-swn-buttons class="flex justify-end space-x-2">
+                <button data-swn-cancel class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"></button>
+                <button data-swn-ok class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"></button>
+            </div>
+        </div>
+    </template>
+
+    <script src="../dist/swn.js"></script>
+    <script>
+        // Initialize notice instance for alert replacement
+        let isNative = true;
+        const notice = new SenangWebsNotice({
+            template: '#alert-template',
+            titleText: 'System Notice'
+        });
+
+        async function testAlert() {
+            alert('This is a test alert message!');
+        }
+
+        async function testConfirm() {
+            const result = await confirm('Do you want to proceed?');
+            alert(`You clicked: ${result ? 'OK' : 'Cancel'}`);
+        }
+
+        async function testPrompt() {
+            const result = await prompt('Please enter your name:', 'John Doe');
+            alert(`You entered: ${result || 'Nothing'}`);
+        }
+
+        function toggleNativeFunctions() {
+            if (isNative) {
+                notice.install();
+                isNative = false;
+                alert('Custom dialogs enabled!');
+            } else {
+                notice.uninstall();
+                isNative = true;
+                alert('Native dialogs restored!');
+            }
+        }
+
+        function replaceAndTestAlert() {
+            notice.install();
+            alert('This is a replaced alert() call using SenangWebs Notice!');
+        }
+
+        function restoreNativeAlert() {
+            notice.uninstall();
+            alert('Native alert restored!');
+        }
+
+        function showNotice(position) {
+            const notice = new SenangWebsNotice({
+                template: '#default-notice',
+                titleText: `Notice (${position})`,
+                buttonText: 'Close',
+                position: position
+            });
+
+            notice.show(`This notice is positioned at: ${position}`);
+        }
+
+        function showStyledNotice(theme) {
+            let options = {
+                template: '#default-notice',
+                titleText: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Theme`,
+                buttonText: 'Close'
+            };
+
+            switch (theme) {
+                case 'blue':
+                    options = {
+                        ...options,
+                        bgColor: '#3498db',
+                        bgOpacity: 0.7
+                    };
+                    break;
+                case 'red':
+                    options = {
+                        ...options,
+                        bgColor: '#e74c3c',
+                        bgOpacity: 0.6
+                    };
+                    break;
+                case 'blur':
+                    options = {
+                        ...options,
+                        bgColor: '#9b59b6',
+                        bgOpacity: 0.5,
+                        bgBlur: 8
+                    };
+                    break;
+            }
+
+            const notice = new SenangWebsNotice(options);
+            notice.show(`This is a notice with the ${theme} theme applied!`);
+        }
+    </script>
+</body>
+
+</html>
