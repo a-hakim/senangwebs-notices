@@ -39,6 +39,7 @@ class SenangWebsNotices {
                 styles.bottom = '0';
                 styles.alignItems = 'center';
                 styles.justifyContent = 'center';
+                styles.padding = '1rem';
                 break;
             case 'top':
                 styles.top = '1rem';
@@ -91,6 +92,7 @@ class SenangWebsNotices {
                 styles.alignItems = 'center';
                 styles.justifyContent = 'center';
                 styles.width = '100%';
+                styles.padding = '1rem';
         }
 
         return styles;

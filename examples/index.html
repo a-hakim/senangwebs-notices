@@ -8,14 +8,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="p-8 bg-gray-50">
-    <section class="container mx-auto">
-        <h1 class="text-2xl font-bold mb-6">SenangWebs Notices Demo</h1>
+<body class="bg-gray-50">
+    <section class="container mx-auto p-4">
+        <h1 class="text-4xl lg:text-7xl capitalize font-bold mb-8">SenangWebs Notices Demo</h1>
 
         <div class="space-y-8">
             <!-- Native Function Replacement Section -->
             <div>
-                <h2 class="text-xl font-semibold mb-4">Native Function Replacement</h2>
+                <h4 class="text-xl lg:text-2xl capitalize font-semibold mb-4">Native Function Replacement</h4>
                 <div class="bg-white border border-neutral-200 rounded-lg p-4 flex flex-col items-center space-y-4 font-mono">
                     <div>
                         <div class="flex flex-wrap gap-2">
@@ -44,7 +44,7 @@
 
             <!-- Position Tests Section -->
             <div>
-                <h2 class="text-xl font-semibold mb-4">Position Tests</h2>
+                <h4 class="text-xl lg:text-2xl capitalize font-semibold mb-4">Position Tests</h4>
                 <div class="bg-white border border-neutral-200 rounded-lg p-4 flex flex-col font-mono">
                     <div class="grid grid-cols-3 gap-4 max-w-xl mx-auto">
                         <button onclick="showNotice('top left')"
@@ -89,7 +89,7 @@
 
             <!-- Style Tests Section -->
             <div>
-                <h2 class="text-xl font-semibold mb-4">Style Tests</h2>
+                <h4 class="text-xl lg:text-2xl capitalize font-semibold mb-4">Style Tests</h4>
                 <div class="bg-white border border-neutral-200 rounded-lg p-4 flex flex-col font-mono">
                     <div class="flex flex-wrap gap-4 mx-auto">
                         <button onclick="showStyledNotice('blue')"
@@ -112,7 +112,7 @@
 
     <!-- Default Template -->
     <template id="default-notice">
-        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px] m-4">
+        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px]">
             <div data-swn-title class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"></div>
             <div data-swn-body class="py-2 px-4"></div>
             <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
@@ -124,7 +124,7 @@
 
     <!-- Alert Template -->
     <template id="alert-template">
-        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px] m-4">
+        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px]">
             <div data-swn-title class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"></div>
             <div data-swn-body class="py-2 px-4"></div>
             <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
@@ -136,7 +136,7 @@
 
     <!-- Confirm Template -->
     <template id="confirm-template">
-        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px] m-4">
+        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px]">
             <div data-swn-title class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"></div>
             <div data-swn-body class="py-2 px-4"></div>
             <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
@@ -149,7 +149,7 @@
 
     <!-- Prompt Template -->
     <template id="prompt-template">
-        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px] m-4">
+        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px]">
             <div data-swn-title class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"></div>
             <div data-swn-body class="py-2 px-4">
             </div>
