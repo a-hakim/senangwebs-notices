@@ -4,40 +4,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SenangWebs Notice Demo</title>
+    <title>SenangWebs Notices Demo</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body class="p-8 bg-gray-50">
     <section class="container mx-auto">
-        <h1 class="text-2xl font-bold mb-6">SenangWebs Notice Demo</h1>
+        <h1 class="text-2xl font-bold mb-6">SenangWebs Notices Demo</h1>
 
         <div class="space-y-8">
             <!-- Native Function Replacement Section -->
             <div>
                 <h2 class="text-xl font-semibold mb-4">Native Function Replacement</h2>
-                <div class="bg-white p-6 rounded-lg shadow-md space-y-4">
+                <div class="bg-white border border-neutral-200 rounded-lg p-4 flex flex-col items-center space-y-4 font-mono">
                     <div>
-                        <p class="mb-2 text-gray-600">Test native function replacements:</p>
                         <div class="flex flex-wrap gap-2">
                             <button onclick="testAlert()"
-                                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                class="bg-blue-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
                                 Test alert()
                             </button>
                             <button onclick="testConfirm()"
-                                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                                class="bg-green-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
                                 Test confirm()
                             </button>
                             <button onclick="testPrompt()"
-                                class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                                class="bg-purple-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
                                 Test prompt()
                             </button>
                         </div>
                     </div>
                     <div>
                         <button onclick="toggleNativeFunctions()"
-                            class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
-                            Toggle Native/Custom Functions
+                            class="bg-gray-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80">
+                            Toggle Native/Custom
                         </button>
                     </div>
                 </div>
@@ -46,23 +45,43 @@
             <!-- Position Tests Section -->
             <div>
                 <h2 class="text-xl font-semibold mb-4">Position Tests</h2>
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="showNotice('center')"
-                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                            Center
+                <div class="bg-white border border-neutral-200 rounded-lg p-4 flex flex-col font-mono">
+                    <div class="grid grid-cols-3 gap-4 max-w-xl mx-auto">
+                        <button onclick="showNotice('top left')"
+                            class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                            Top Left
                         </button>
                         <button onclick="showNotice('top')"
-                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
                             Top
                         </button>
                         <button onclick="showNotice('top right')"
-                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
                             Top Right
                         </button>
+                        <button onclick="showNotice('left')"
+                            class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                            Left
+                        </button>
+                        <button onclick="showNotice('center')"
+                            class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                            Center
+                        </button>
+                        <button onclick="showNotice('right')"
+                            class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                            Right
+                        </button>
+                        <button onclick="showNotice('bottom left')"
+                            class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                            Bottom Left
+                        </button>                        
                         <button onclick="showNotice('bottom')"
-                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
                             Bottom
+                        </button>
+                        <button onclick="showNotice('bottom right')"
+                            class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                            Bottom Right
                         </button>
                     </div>
                 </div>
@@ -71,18 +90,18 @@
             <!-- Style Tests Section -->
             <div>
                 <h2 class="text-xl font-semibold mb-4">Style Tests</h2>
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <div class="flex flex-wrap gap-2">
+                <div class="bg-white border border-neutral-200 rounded-lg p-4 flex flex-col font-mono">
+                    <div class="flex flex-wrap gap-4 mx-auto">
                         <button onclick="showStyledNotice('blue')"
-                            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            class="bg-blue-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
                             Blue Theme
                         </button>
                         <button onclick="showStyledNotice('red')"
-                            class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
+                            class="bg-red-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
                             Red Theme
                         </button>
                         <button onclick="showStyledNotice('blur')"
-                            class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">
+                            class="bg-purple-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
                             Blur Effect
                         </button>
                     </div>
@@ -93,55 +112,52 @@
 
     <!-- Default Template -->
     <template id="default-notice">
-        <div data-swn class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-auto">
-            <div data-swn-title class="text-xl font-semibold text-gray-800 pb-3 border-b border-gray-200"></div>
-            <div data-swn-body class="py-4 text-gray-600"></div>
-            <div data-swn-buttons class="flex justify-end space-x-2">
+        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px] m-4">
+            <div data-swn-title class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"></div>
+            <div data-swn-body class="py-2 px-4"></div>
+            <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
                 <button data-swn-ok
-                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"></button>
+                    class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
             </div>
         </div>
     </template>
 
     <!-- Alert Template -->
     <template id="alert-template">
-        <div data-swn data-swn-position="center" data-swn-bg-color="#000000" data-swn-bg-opacity="0.5"
-            data-swn-bg-blur="3" data-swn-z-index="9999" class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-auto">
-            <div data-swn-title class="text-xl font-semibold text-gray-800 pb-3 border-b border-gray-200"></div>
-            <div data-swn-body class="py-4 text-gray-600"></div>
-            <div data-swn-buttons class="flex justify-end space-x-2">
+        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px] m-4">
+            <div data-swn-title class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"></div>
+            <div data-swn-body class="py-2 px-4"></div>
+            <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
                 <button data-swn-ok
-                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"></button>
+                    class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
             </div>
         </div>
     </template>
 
     <!-- Confirm Template -->
     <template id="confirm-template">
-        <div data-swn class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-auto">
-            <div data-swn-title class="text-xl font-semibold text-gray-800 pb-3 border-b border-gray-200"></div>
-            <div data-swn-body class="py-4 text-gray-600"></div>
-            <div data-swn-buttons class="flex justify-end space-x-2">
-                <button data-swn-cancel
-                    class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"></button>
+        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px] m-4">
+            <div data-swn-title class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"></div>
+            <div data-swn-body class="py-2 px-4"></div>
+            <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
+                <button data-swn-cancel class="border-blue-600 border-2 text-blue-600 rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
                 <button data-swn-ok
-                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"></button>
+                    class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
             </div>
         </div>
     </template>
 
     <!-- Prompt Template -->
     <template id="prompt-template">
-        <div data-swn class="bg-white rounded-lg shadow-xl p-6 max-w-md mx-auto">
-            <div data-swn-title class="text-xl font-semibold text-gray-800 pb-3 border-b border-gray-200"></div>
-            <div data-swn-body class="py-4 text-gray-600"></div>
-            <input type="text" data-swn-input
-                class="w-full px-3 py-2 border rounded-md mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            <div data-swn-buttons class="flex justify-end space-x-2">
-                <button data-swn-cancel
-                    class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"></button>
+        <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px] m-4">
+            <div data-swn-title class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"></div>
+            <div data-swn-body class="py-2 px-4">
+            </div>
+            <input type="text" data-swn-input class="h-10 px-3 border-neutral-200 border-2 rounded-lg text-base mx-4 mb-2">
+            <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
+                <button data-swn-cancel class="border-blue-600 border-2 text-blue-600 rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
                 <button data-swn-ok
-                    class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"></button>
+                    class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
             </div>
         </div>
     </template>
@@ -152,7 +168,7 @@
 
         const notice = new SenangWebsNotices({
             template: '#alert-template',
-            titleText: 'System Notice'
+            titleText: 'SenangWebs Notices'
         });
 
         async function testAlert() {
