@@ -1,18 +1,33 @@
 const path = require('path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
-  entry: {
-    swn: './src/js/swn.js',
-  },
+  mode: 'production',
+  entry: './src/js/swn.js',
   output: {
-    filename: '[name].js',
+    filename: 'swn.js',
     path: path.resolve(__dirname, 'dist'),
     library: {
-      name: 'SWN',
+      name: 'SenangWebsNotices',
       type: 'umd',
+      export: 'default',
+      umdNamedDefine: true
     },
     globalObject: 'this'
+  },
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        extractComments: false,
+        terserOptions: {
+          format: {
+            comments: false,
+          }
+        },
+      }),
+    ],
   },
   module: {
     rules: [
@@ -20,7 +35,10 @@ module.exports = {
         test: /\.js$/,
         exclude: /node_modules/,
         use: {
-          loader: 'babel-loader'
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-env']
+          }
         }
       },
       {
@@ -29,4 +47,9 @@ module.exports = {
       }
     ]
   },
+  plugins: [
+    new MiniCssExtractPlugin({
+      filename: 'swn.css'
+    })
+  ]
 };

@@ -7,14 +7,14 @@ SenangWebs Notices (SWN) is a lightweight JavaScript library that replaces nativ
 
 ## Features
 
-- Replace native browser dialogs with customizable alternatives
-- Support for alert(), confirm(), and prompt() replacements
-- Customizable positioning and styling via data attributes
-- Background blur effects and overlay customization
-- Flexible templating system
-- Promises-based API
-- Responsive design support
-- No dependencies required
+- Replace native browser dialogs (alert, confirm, prompt) with customizable alternatives
+- Multiple positioning options (center, top, bottom, corners, etc.)
+- Backdrop blur effect support
+- Customizable overlay colors and opacity
+- Template-based customization
+- Promise-based async/await support
+- Focus management for accessibility
+- No external dependencies
 
 ## Installation
 
@@ -34,21 +34,14 @@ Include SenangWebs Notices directly in your HTML file using unpkg:
 
 ## Usage
 
-1. Include the JavaScript file in your HTML:
-
-```html
-<!-- If installed via npm -->
-<script src="path/to/swn.js"></script>
-
-<!-- Or if using unpkg -->
-<script src="https://unpkg.com/senangwebs-notices@latest/dist/swn.js"></script>
-```
-
-2. Initialize the library:
+1. Initialize the library:
 
 ```javascript
-const notice = new SenangWebsNotice({
-    // Optional global configuration
+const notices = new SenangWebsNotices({
+    // Optional configuration
+    titleText: 'Custom Title',
+    buttonText: 'OK',
+    cancelText: 'Cancel',
     position: 'center',
     bgColor: '#000000',
     bgOpacity: 0.5,
@@ -56,85 +49,68 @@ const notice = new SenangWebsNotice({
     zIndex: 9999
 });
 
-// Replace native dialogs
-notice.install();
+// Replace native dialogs (optional)
+notices.install();
 ```
 
-3. Create a custom template (optional):
+2. Use directly or through native dialog functions:
+
+```javascript
+// Using native functions (after install())
+alert('Hello World!');
+const confirmed = await confirm('Are you sure?');
+const name = await prompt('Enter your name:', 'John Doe');
+
+// Using library methods directly
+await notices.show('Hello World!');
+const confirmed = await notices.showConfirm('Are you sure?');
+const name = await notices.showPrompt('Enter your name:');
+```
+
+3. Custom template example:
 
 ```html
-<template id="custom-notice">
-    <div data-swn 
-         data-swn-position="center"
-         data-swn-bg-color="#000000"
-         data-swn-bg-opacity="0.5"
-         data-swn-bg-blur="3"
-         data-swn-z-index="9999"
-         class="your-custom-classes">
+<template id="custom-template">
+    <div data-swn class="your-custom-classes">
         <div data-swn-title></div>
         <div data-swn-body></div>
         <div data-swn-buttons>
+            <button data-swn-cancel></button>
             <button data-swn-ok></button>
         </div>
     </div>
 </template>
-```
 
-4. Use the dialogs:
-
-```javascript
-// Alert
-alert('Hello World!');
-
-// Confirm
-const result = await confirm('Are you sure?');
-if (result) {
-    // User clicked OK
-}
-
-// Prompt
-const name = await prompt('Enter your name:', 'John Doe');
-if (name) {
-    console.log(`Hello, ${name}!`);
-}
+<script>
+const notices = new SenangWebsNotices({
+    template: '#custom-template'
+});
+</script>
 ```
 
 ## Configuration Options
 
 ### Initialization Options
 
-You can configure the notice system with these options:
-
 ```javascript
-const notice = new SenangWebsNotice({
-    titleText: 'Notice',           // Default title for dialogs
+const notices = new SenangWebsNotices({
+    titleText: 'Notice',           // Default title
     buttonText: 'OK',             // Text for OK button
     cancelText: 'Cancel',         // Text for Cancel button
-    template: '#custom-notice',   // Custom template ID
+    template: '#custom-template', // Template selector
     position: 'center',          // Dialog position
-    bgColor: '#000000',         // Overlay background color
-    bgOpacity: 0.5,            // Overlay opacity
-    bgBlur: 3,                // Background blur effect (pixels)
-    zIndex: 9999,            // Base z-index for the dialog
-    inputPlaceholder: 'Enter your response...', // Placeholder for prompt input
+    bgColor: '#000000',         // Overlay color
+    bgOpacity: 0.5,            // Overlay opacity (0-1)
+    bgBlur: 0,                // Background blur in pixels
+    zIndex: 9999,            // Base z-index
+    inputPlaceholder: 'Enter your response...', // Prompt input placeholder
     defaultValue: ''        // Default value for prompt input
 });
 ```
 
-### Data Attributes
-
-Customize the notice appearance using these data attributes:
-
-- `data-swn`: Main notice container
-- `data-swn-position`: Position of the notice
-- `data-swn-bg-color`: Background overlay color
-- `data-swn-bg-opacity`: Background overlay opacity
-- `data-swn-bg-blur`: Background blur effect
-- `data-swn-z-index`: Z-index for the notice
-
 ### Supported Positions
 
-- `center`: Center of the screen
+- `center` (default): Center of the screen
 - `top`: Top center
 - `top left`: Top left corner
 - `top right`: Top right corner
@@ -144,13 +120,33 @@ Customize the notice appearance using these data attributes:
 - `left`: Middle left
 - `right`: Middle right
 
+### Data Attributes
+
+The library uses these data attributes for templating:
+
+- `data-swn`: Main notice container
+- `data-swn-title`: Title container
+- `data-swn-body`: Message body container
+- `data-swn-buttons`: Buttons container
+- `data-swn-ok`: OK button
+- `data-swn-cancel`: Cancel button (for confirm/prompt)
+- `data-swn-input`: Input field (for prompt)
+
+## Methods
+
+- `show(message)`: Display an alert dialog
+- `showConfirm(message)`: Display a confirmation dialog
+- `showPrompt(message)`: Display a prompt dialog
+- `install()`: Replace native dialog functions
+- `uninstall()`: Restore native dialog functions
+
 ## Browser Support
 
 SenangWebs Notices works on all modern browsers that support:
 
-- Promises
+- ES6+ features (Promise, async/await)
 - CSS Flexbox
-- backdrop-filter (for blur effects)
+- backdrop-filter (optional, for blur effects)
 
 ## Contributing
 

@@ -1,5 +1,4 @@
-// SenangWebs Notice Library
-class SenangWebsNotice {
+class SenangWebsNotices {
     constructor(options = {}) {
         this.options = {
             titleText: options.titleText || 'Notice',
@@ -105,7 +104,7 @@ class SenangWebsNotice {
         // Create wrapper for backdrop-filter
         const wrapper = document.createElement('div');
         wrapper.setAttribute('data-swn-overlay-wrapper', '');
-        
+
         // Wrapper styles
         const wrapperStyles = {
             position: 'fixed',
@@ -115,19 +114,19 @@ class SenangWebsNotice {
             height: '100%',
             zIndex: this.options.zIndex,
         };
-        
+
         // If blur is enabled, apply backdrop-filter to wrapper
         if (this.options.bgBlur > 0) {
             wrapperStyles.backdropFilter = `blur(${this.options.bgBlur}px)`;
             wrapperStyles.WebkitBackdropFilter = `blur(${this.options.bgBlur}px)`; // For Safari
         }
-        
+
         this.applyStyles(wrapper, wrapperStyles);
 
         // Create the colored overlay
         const overlay = document.createElement('div');
         overlay.setAttribute('data-swn-overlay', '');
-        
+
         // Apply base styles to colored overlay
         const overlayStyles = {
             position: 'absolute',
@@ -140,7 +139,7 @@ class SenangWebsNotice {
         };
 
         this.applyStyles(overlay, overlayStyles);
-        
+
         // Add overlay to wrapper
         wrapper.appendChild(overlay);
         return wrapper;
@@ -155,9 +154,9 @@ class SenangWebsNotice {
         positionStyles.zIndex = this.options.zIndex + 1;
         this.applyStyles(container, positionStyles);
 
-        const templateId = type === 'prompt' ? '#prompt-template' : 
-                          type === 'confirm' ? '#confirm-template' : 
-                          this.options.template;
+        const templateId = type === 'prompt' ? '#prompt-template' :
+            type === 'confirm' ? '#confirm-template' :
+            this.options.template;
 
         if (templateId) {
             const template = document.querySelector(templateId);
@@ -167,37 +166,37 @@ class SenangWebsNotice {
         } else {
             noticeElement = document.createElement('div');
             noticeElement.setAttribute('data-swn', '');
-            
+
             switch (type) {
                 case 'prompt':
                     noticeElement.innerHTML = `
-                        <div data-swn-title></div>
-                        <div data-swn-body></div>
-                        <input type="text" data-swn-input class="w-full px-3 py-2 border rounded-md mb-4">
-                        <div data-swn-buttons>
-                            <button data-swn-cancel></button>
-                            <button data-swn-ok></button>
-                        </div>
-                    `;
+                            <div data-swn-title></div>
+                            <div data-swn-body></div>
+                            <input type="text" data-swn-input class="w-full px-3 py-2 border rounded-md mb-4">
+                            <div data-swn-buttons>
+                                <button data-swn-cancel></button>
+                                <button data-swn-ok></button>
+                            </div>
+                        `;
                     break;
                 case 'confirm':
                     noticeElement.innerHTML = `
-                        <div data-swn-title></div>
-                        <div data-swn-body></div>
-                        <div data-swn-buttons>
-                            <button data-swn-cancel></button>
-                            <button data-swn-ok></button>
-                        </div>
-                    `;
+                            <div data-swn-title></div>
+                            <div data-swn-body></div>
+                            <div data-swn-buttons>
+                                <button data-swn-cancel></button>
+                                <button data-swn-ok></button>
+                            </div>
+                        `;
                     break;
                 default:
                     noticeElement.innerHTML = `
-                        <div data-swn-title></div>
-                        <div data-swn-body></div>
-                        <div data-swn-buttons>
-                            <button data-swn-ok></button>
-                        </div>
-                    `;
+                            <div data-swn-title></div>
+                            <div data-swn-body></div>
+                            <div data-swn-buttons>
+                                <button data-swn-ok></button>
+                            </div>
+                        `;
             }
         }
 
@@ -228,7 +227,10 @@ class SenangWebsNotice {
         }
 
         container.appendChild(noticeElement);
-        return { overlay: this.createOverlay(), container };
+        return {
+            overlay: this.createOverlay(),
+            container
+        };
     }
 
     show(message) {
@@ -245,7 +247,10 @@ class SenangWebsNotice {
 
     showNotice(message, type) {
         return new Promise(resolve => {
-            const { overlay, container } = this.createNoticeElement(message, type);
+            const {
+                overlay,
+                container
+            } = this.createNoticeElement(message, type);
             document.body.appendChild(overlay);
             document.body.appendChild(container);
             document.body.style.overflow = 'hidden';
@@ -310,11 +315,4 @@ class SenangWebsNotice {
     }
 }
 
-// Export for different module systems
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = SenangWebsNotice;
-} else if (typeof define === 'function' && define.amd) {
-    define([], function() { return SenangWebsNotice; });
-} else {
-    window.SenangWebsNotice = SenangWebsNotice;
-}
+export default SenangWebsNotices;
