@@ -8,107 +8,97 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-gray-50">
-    <section class="container mx-auto p-4">
-        <h1 class="text-4xl lg:text-7xl capitalize font-bold mb-8">SenangWebs Notices Demo</h1>
+<body class="bg-gray-100">
 
-        <div class="space-y-8">
-            <!-- Native Function Replacement Section -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <h4 class="text-xl lg:text-2xl capitalize font-bold mb-4">Native Function Replacement</h4>
+        <div class="bg-white border border-neutral-200 rounded-lg lg:rounded-2xl p-4 mb-8">
             <div>
-                <h4 class="text-xl lg:text-2xl capitalize font-semibold mb-4">Native Function Replacement</h4>
-                <div class="bg-white border border-neutral-200 rounded-lg p-4 flex flex-col items-center space-y-4 font-mono">
-                    <div>
-                        <div class="flex flex-wrap gap-2">
-                            <button onclick="testAlert()"
-                                class="bg-blue-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
-                                Test alert()
-                            </button>
-                            <button onclick="testConfirm()"
-                                class="bg-green-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
-                                Test confirm()
-                            </button>
-                            <button onclick="testPrompt()"
-                                class="bg-purple-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
-                                Test prompt()
-                            </button>
-                        </div>
-                    </div>
-                    <div>
-                        <button onclick="toggleNativeFunctions()"
-                            class="bg-gray-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80">
-                            Toggle Native/Custom
-                        </button>
-                    </div>
+                <div class="flex flex-wrap gap-4">
+                    <button onclick="testAlert()"
+                        class="bg-blue-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
+                        Test alert()
+                    </button>
+                    <button onclick="testConfirm()"
+                        class="bg-green-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
+                        Test confirm()
+                    </button>
+                    <button onclick="testPrompt()"
+                        class="bg-purple-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
+                        Test prompt()
+                    </button>
                 </div>
             </div>
-
-            <!-- Position Tests Section -->
-            <div>
-                <h4 class="text-xl lg:text-2xl capitalize font-semibold mb-4">Position Tests</h4>
-                <div class="bg-white border border-neutral-200 rounded-lg p-4 flex flex-col font-mono">
-                    <div class="grid grid-cols-3 gap-4 max-w-xl mx-auto">
-                        <button onclick="showNotice('top left')"
-                            class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
-                            Top Left
-                        </button>
-                        <button onclick="showNotice('top')"
-                            class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
-                            Top
-                        </button>
-                        <button onclick="showNotice('top right')"
-                            class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
-                            Top Right
-                        </button>
-                        <button onclick="showNotice('left')"
-                            class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
-                            Left
-                        </button>
-                        <button onclick="showNotice('center')"
-                            class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
-                            Center
-                        </button>
-                        <button onclick="showNotice('right')"
-                            class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
-                            Right
-                        </button>
-                        <button onclick="showNotice('bottom left')"
-                            class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
-                            Bottom Left
-                        </button>                        
-                        <button onclick="showNotice('bottom')"
-                            class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
-                            Bottom
-                        </button>
-                        <button onclick="showNotice('bottom right')"
-                            class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
-                            Bottom Right
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Style Tests Section -->
-            <div>
-                <h4 class="text-xl lg:text-2xl capitalize font-semibold mb-4">Style Tests</h4>
-                <div class="bg-white border border-neutral-200 rounded-lg p-4 flex flex-col font-mono">
-                    <div class="flex flex-wrap gap-4 mx-auto">
-                        <button onclick="showStyledNotice('blue')"
-                            class="bg-blue-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
-                            Blue Theme
-                        </button>
-                        <button onclick="showStyledNotice('red')"
-                            class="bg-red-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
-                            Red Theme
-                        </button>
-                        <button onclick="showStyledNotice('blur')"
-                            class="bg-purple-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
-                            Blur Effect
-                        </button>
-                    </div>
-                </div>
+            <div class="mt-4">
+                <button onclick="toggleNativeFunctions()"
+                    class="bg-gray-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80">
+                    Toggle Native/Custom
+                </button>
             </div>
         </div>
-    </section>
+
+        <h4 class="text-xl lg:text-2xl capitalize font-bold mb-4">Position Tests</h4>
+        <div class="bg-white border border-neutral-200 rounded-lg lg:rounded-2xl p-4 mb-8">
+            <div class="grid grid-cols-3 gap-4 max-w-xl">
+                <button onclick="showNotice('top left')"
+                    class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                    Top Left
+                </button>
+                <button onclick="showNotice('top')"
+                    class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                    Top
+                </button>
+                <button onclick="showNotice('top right')"
+                    class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                    Top Right
+                </button>
+                <button onclick="showNotice('left')"
+                    class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                    Left
+                </button>
+                <button onclick="showNotice('center')"
+                    class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                    Center
+                </button>
+                <button onclick="showNotice('right')"
+                    class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                    Right
+                </button>
+                <button onclick="showNotice('bottom left')"
+                    class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                    Bottom Left
+                </button>                        
+                <button onclick="showNotice('bottom')"
+                    class="bg-blue-500 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                    Bottom
+                </button>
+                <button onclick="showNotice('bottom right')"
+                    class="bg-blue-400 text-white rounded-lg text-base font-semibold px-4 w-full aspect-square flex items-center justify-center hover:opacity-80">
+                    Bottom Right
+                </button>
+            </div>
+        </div>
+
+        <h4 class="text-xl lg:text-2xl capitalize font-bold mb-4">Style Tests</h4>
+        <div class="bg-white border border-neutral-200 rounded-lg lg:rounded-2xl p-4 mb-8">
+            <div class="flex flex-wrap gap-4 mx-auto">
+                <button onclick="showStyledNotice('blue')"
+                    class="bg-blue-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
+                    Blue Theme
+                </button>
+                <button onclick="showStyledNotice('red')"
+                    class="bg-red-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
+                    Red Theme
+                </button>
+                <button onclick="showStyledNotice('blur')"
+                    class="bg-purple-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
+                    Blur Effect
+                </button>
+            </div>
+        </div>
+
+    </main>
 
     <!-- Default Template -->
     <template id="default-notice">
