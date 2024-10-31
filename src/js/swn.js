@@ -1,4 +1,4 @@
-class SenangWebsNotices {
+class SWN {
     constructor(options = {}) {
         this.options = {
             titleText: options.titleText || 'Notice',
@@ -317,4 +317,4 @@ class SenangWebsNotices {
     }
 }
 
-export default SenangWebsNotices;
+export default SWN;

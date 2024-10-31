@@ -17,11 +17,11 @@
             <div>
                 <div class="flex flex-wrap gap-4">
                     <button onclick="testAlert()"
-                        class="bg-blue-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
+                        class="bg-teal-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
                         Test alert()
                     </button>
                     <button onclick="testConfirm()"
-                        class="bg-green-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
+                        class="bg-amber-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80">
                         Test confirm()
                     </button>
                     <button onclick="testPrompt()"
@@ -107,7 +107,7 @@
             <div data-swn-body class="py-2 px-4"></div>
             <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
                 <button data-swn-ok
-                    class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
+                    class="bg-teal-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
             </div>
         </div>
     </template>
@@ -119,7 +119,7 @@
             <div data-swn-body class="py-2 px-4"></div>
             <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
                 <button data-swn-ok
-                    class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
+                    class="bg-teal-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
             </div>
         </div>
     </template>
@@ -130,9 +130,9 @@
             <div data-swn-title class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"></div>
             <div data-swn-body class="py-2 px-4"></div>
             <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
-                <button data-swn-cancel class="border-blue-600 border-2 text-blue-600 rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
+                <button data-swn-cancel class="border-teal-600 border-2 text-teal-600 rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
                 <button data-swn-ok
-                    class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
+                    class="bg-teal-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
             </div>
         </div>
     </template>
@@ -145,9 +145,9 @@
             </div>
             <input type="text" data-swn-input class="h-10 px-3 border-neutral-200 border-2 rounded-lg text-base mx-4 mb-2">
             <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
-                <button data-swn-cancel class="border-blue-600 border-2 text-blue-600 rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
+                <button data-swn-cancel class="border-teal-600 border-2 text-teal-600 rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
                 <button data-swn-ok
-                    class="bg-blue-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
+                    class="bg-teal-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"></button>
             </div>
         </div>
     </template>
@@ -156,7 +156,7 @@
     <script>
         let isNative = true;
 
-        const notice = new SenangWebsNotices({
+        const notice = new SWN({
             template: '#alert-template',
             titleText: 'SenangWebs Notices'
         });
@@ -198,7 +198,7 @@
         }
 
         function showNotice(position) {
-            const notice = new SenangWebsNotices({
+            const notice = new SWN({
                 template: '#default-notice',
                 titleText: `Notice (${position})`,
                 buttonText: 'Close',
@@ -240,7 +240,7 @@
                     break;
             }
 
-            const notice = new SenangWebsNotices(options);
+            const notice = new SWN(options);
             notice.show(`This is a notice with the ${theme} theme applied!`);
         }
     </script>

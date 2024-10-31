@@ -9,7 +9,7 @@ module.exports = {
     filename: 'swn.js',
     path: path.resolve(__dirname, 'dist'),
     library: {
-      name: 'SenangWebsNotices',
+      name: 'SWN',
       type: 'umd',
       export: 'default',
       umdNamedDefine: true
