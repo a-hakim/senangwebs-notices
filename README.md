@@ -37,7 +37,7 @@ Include SenangWebs Notices directly in your HTML file using unpkg:
 1. Initialize the library:
 
 ```javascript
-const notices = new SenangWebsNotices({
+const notices = new SWN({
     // Optional configuration
     titleText: 'Custom Title',
     buttonText: 'OK',
@@ -82,7 +82,7 @@ const name = await notices.showPrompt('Enter your name:');
 </template>
 
 <script>
-const notices = new SenangWebsNotices({
+const notices = new SWN({
     template: '#custom-template'
 });
 </script>
@@ -93,7 +93,7 @@ const notices = new SenangWebsNotices({
 ### Initialization Options
 
 ```javascript
-const notices = new SenangWebsNotices({
+const notices = new SWN({
     titleText: 'Notice',           // Default title
     buttonText: 'OK',             // Text for OK button
     cancelText: 'Cancel',         // Text for Cancel button
