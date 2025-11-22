@@ -389,4 +389,41 @@ class SWN {
   }
 }
 
+// Auto-initialization
+document.addEventListener("DOMContentLoaded", () => {
+  // Check for template with child having data-swn
+  const templates = document.querySelectorAll("template");
+  let hasValidTemplate = false;
+
+  for (const template of templates) {
+    if (template.content.querySelector("[data-swn]")) {
+      hasValidTemplate = true;
+      break;
+    }
+  }
+
+  // Check for trigger element
+  const trigger = document.querySelector("[data-swn-trigger]");
+
+  if (hasValidTemplate && trigger) {
+    const options = {};
+    const dataset = trigger.dataset;
+
+    // Map data attributes to options
+    if (dataset.swnTitle) options.titleText = dataset.swnTitle;
+    if (dataset.swnOkText) options.buttonText = dataset.swnOkText;
+    if (dataset.swnCancelText) options.cancelText = dataset.swnCancelText;
+    if (dataset.swnTemplate) options.template = dataset.swnTemplate;
+    if (dataset.swnPosition) options.position = dataset.swnPosition;
+    if (dataset.swnBgColor) options.bgColor = dataset.swnBgColor;
+    if (dataset.swnBgOpacity)
+      options.bgOpacity = parseFloat(dataset.swnBgOpacity);
+    if (dataset.swnBgBlur) options.bgBlur = parseInt(dataset.swnBgBlur);
+    if (dataset.swnZIndex) options.zIndex = parseInt(dataset.swnZIndex);
+
+    const swn = new SWN(options);
+    swn.install();
+  }
+});
+
 export default SWN;
