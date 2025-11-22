@@ -165,10 +165,21 @@
           class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"
         ></div>
         <div data-swn-body class="py-2 px-4"></div>
+        <div class="px-4">
+          <input
+            type="text"
+            data-swn-input
+            class="w-full px-3 py-2 border rounded-md mb-2"
+          />
+        </div>
         <div
           data-swn-buttons
           class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2"
         >
+          <button
+            data-swn-cancel
+            class="bg-gray-500 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"
+          ></button>
           <button
             data-swn-ok
             class="bg-teal-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"
@@ -264,7 +275,7 @@
       let isNative = true;
 
       const notice = new SWN({
-        template: "#alert-template",
+        template: "#default-notice",
         titleText: "SenangWebs Notices",
       });
 

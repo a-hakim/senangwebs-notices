@@ -1,6 +1,6 @@
 {
   "name": "senangwebs-notices",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Lightweight JavaScript library that replaces native browser dialogs (alert, confirm, prompt) with customizable, modern-looking notifications.",
   "main": "index.js",
   "directories": {
