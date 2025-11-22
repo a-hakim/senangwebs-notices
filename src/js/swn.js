@@ -163,12 +163,13 @@ class SWN {
     positionStyles.zIndex = options.zIndex + 1;
     this.applyStyles(container, positionStyles);
 
-    const templateId =
-      type === "prompt"
-        ? "#prompt-template"
-        : type === "confirm"
-        ? "#confirm-template"
-        : options.template;
+    const templateId = options.template
+      ? options.template
+      : type === "prompt"
+      ? "#prompt-template"
+      : type === "confirm"
+      ? "#confirm-template"
+      : null;
 
     let template = null;
     if (templateId) {
@@ -232,10 +233,26 @@ class SWN {
       container.setAttribute("aria-describedby", bodyElement.id);
     }
     if (okButton) okButton.textContent = options.buttonText;
-    if (cancelButton) cancelButton.textContent = options.cancelText;
+
+    // Handle Cancel Button Visibility
+    if (cancelButton) {
+      if (type === "alert") {
+        cancelButton.style.display = "none";
+      } else {
+        cancelButton.textContent = options.cancelText;
+        cancelButton.style.display = ""; // Reset display
+      }
+    }
+
+    // Handle Input Visibility
     if (inputElement) {
-      inputElement.placeholder = options.inputPlaceholder;
-      inputElement.value = options.defaultValue;
+      if (type === "prompt") {
+        inputElement.placeholder = options.inputPlaceholder;
+        inputElement.value = options.defaultValue;
+        inputElement.style.display = ""; // Reset display
+      } else {
+        inputElement.style.display = "none";
+      }
     }
 
     // Apply custom attributes
@@ -359,25 +376,64 @@ class SWN {
 
       if (inputElement) {
         inputElement.focus();
-      } else if (okButton) {
         okButton.focus();
       }
     });
   }
 
+  getOptionsFromElement(element) {
+    const options = {};
+    const dataset = element.dataset;
+
+    if (dataset.swnTitle) options.titleText = dataset.swnTitle;
+    if (dataset.swnOkText) options.buttonText = dataset.swnOkText;
+    if (dataset.swnCancelText) options.cancelText = dataset.swnCancelText;
+    if (dataset.swnTemplate) options.template = dataset.swnTemplate;
+    if (dataset.swnPosition) options.position = dataset.swnPosition;
+    if (dataset.swnBgColor) options.bgColor = dataset.swnBgColor;
+    if (dataset.swnBgOpacity)
+      options.bgOpacity = parseFloat(dataset.swnBgOpacity);
+    if (dataset.swnBgBlur) options.bgBlur = parseInt(dataset.swnBgBlur);
+    if (dataset.swnZIndex) options.zIndex = parseInt(dataset.swnZIndex);
+
+    return options;
+  }
+
   install() {
     window.alert = async (message) => {
-      await this.show(message);
+      let options = {};
+      if (
+        document.activeElement &&
+        document.activeElement.hasAttribute("data-swn-trigger")
+      ) {
+        options = this.getOptionsFromElement(document.activeElement);
+      }
+      await this.show(message, options);
     };
 
     window.confirm = async (message) => {
-      return await this.showConfirm(message);
+      let options = {};
+      if (
+        document.activeElement &&
+        document.activeElement.hasAttribute("data-swn-trigger")
+      ) {
+        options = this.getOptionsFromElement(document.activeElement);
+      }
+      return await this.showConfirm(message, options);
     };
 
     window.prompt = async (message, defaultValue = "") => {
+      let options = {};
+      if (
+        document.activeElement &&
+        document.activeElement.hasAttribute("data-swn-trigger")
+      ) {
+        options = this.getOptionsFromElement(document.activeElement);
+      }
       this.options.defaultValue = defaultValue;
       return await this.showPrompt(message, {
         defaultValue,
+        ...options,
       });
     };
   }
@@ -406,22 +462,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const trigger = document.querySelector("[data-swn-trigger]");
 
   if (hasValidTemplate && trigger) {
-    const options = {};
-    const dataset = trigger.dataset;
-
-    // Map data attributes to options
-    if (dataset.swnTitle) options.titleText = dataset.swnTitle;
-    if (dataset.swnOkText) options.buttonText = dataset.swnOkText;
-    if (dataset.swnCancelText) options.cancelText = dataset.swnCancelText;
-    if (dataset.swnTemplate) options.template = dataset.swnTemplate;
-    if (dataset.swnPosition) options.position = dataset.swnPosition;
-    if (dataset.swnBgColor) options.bgColor = dataset.swnBgColor;
-    if (dataset.swnBgOpacity)
-      options.bgOpacity = parseFloat(dataset.swnBgOpacity);
-    if (dataset.swnBgBlur) options.bgBlur = parseInt(dataset.swnBgBlur);
-    if (dataset.swnZIndex) options.zIndex = parseInt(dataset.swnZIndex);
-
-    const swn = new SWN(options);
+    // Just install the library, options will be resolved at runtime
+    const swn = new SWN();
     swn.install();
   }
 });
