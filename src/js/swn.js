@@ -1,3 +1,5 @@
+let _idCounter = 0;
+
 class SWN {
   constructor(options = {}) {
     this.options = {
@@ -12,15 +14,58 @@ class SWN {
       zIndex: options.zIndex || 9999,
       inputPlaceholder: options.inputPlaceholder || "Enter your response...",
       defaultValue: options.defaultValue || "",
+      closeOnOverlayClick: options.closeOnOverlayClick !== undefined ? options.closeOnOverlayClick : false,
+      animation: options.animation || null,
+      onOpen: options.onOpen || null,
+      onClose: options.onClose || null,
     };
 
-    // Store original functions
     this.originalAlert = window.alert;
     this.originalConfirm = window.confirm;
     this.originalPrompt = window.prompt;
 
-    // Track open dialogs
     this.openCount = 0;
+    this._activeOverlays = [];
+  }
+
+  _generateId() {
+    return ++_idCounter;
+  }
+
+  _getAnimationStyles(animation) {
+    if (!animation) return { enter: {}, exit: {} };
+
+    const duration = animation.duration || 200;
+    const type = animation.type || "fade";
+
+    switch (type) {
+      case "fade":
+        return {
+          enter: { opacity: "0", transition: `opacity ${duration}ms ease` },
+          active: { opacity: "1" },
+          exit: { opacity: "0", transition: `opacity ${duration}ms ease` },
+        };
+      case "slide-up":
+        return {
+          enter: { opacity: "0", transform: "translateY(20px)", transition: `opacity ${duration}ms ease, transform ${duration}ms ease` },
+          active: { opacity: "1", transform: "translateY(0)" },
+          exit: { opacity: "0", transform: "translateY(20px)", transition: `opacity ${duration}ms ease, transform ${duration}ms ease` },
+        };
+      case "slide-down":
+        return {
+          enter: { opacity: "0", transform: "translateY(-20px)", transition: `opacity ${duration}ms ease, transform ${duration}ms ease` },
+          active: { opacity: "1", transform: "translateY(0)" },
+          exit: { opacity: "0", transform: "translateY(-20px)", transition: `opacity ${duration}ms ease, transform ${duration}ms ease` },
+        };
+      case "scale":
+        return {
+          enter: { opacity: "0", transform: "scale(0.9)", transition: `opacity ${duration}ms ease, transform ${duration}ms ease` },
+          active: { opacity: "1", transform: "scale(1)" },
+          exit: { opacity: "0", transform: "scale(0.9)", transition: `opacity ${duration}ms ease, transform ${duration}ms ease` },
+        };
+      default:
+        return { enter: {}, exit: {} };
+    }
   }
 
   getPositionStyles(position) {
@@ -29,7 +74,6 @@ class SWN {
       display: "flex",
     };
 
-    // Only set full width for center position
     if (position === "center") {
       styles.width = "100%";
     }
@@ -87,7 +131,6 @@ class SWN {
         styles.transform = "translateY(-50%)";
         break;
       default:
-        // Default to center
         styles.top = "0";
         styles.left = "0";
         styles.right = "0";
@@ -106,46 +149,39 @@ class SWN {
   }
 
   createOverlay(options) {
-    // Create wrapper for backdrop-filter
     const wrapper = document.createElement("div");
     wrapper.setAttribute("data-swn-overlay-wrapper", "");
 
-    // Wrapper styles
     const wrapperStyles = {
       position: "fixed",
-      top: 0,
-      left: 0,
+      top: "0",
+      left: "0",
       width: "100%",
       height: "100%",
-      zIndex: options.zIndex,
+      zIndex: String(options.zIndex),
     };
 
-    // If blur is enabled, apply backdrop-filter to wrapper
     if (options.bgBlur > 0) {
       wrapperStyles.backdropFilter = `blur(${options.bgBlur}px)`;
-      wrapperStyles.WebkitBackdropFilter = `blur(${options.bgBlur}px)`; // For Safari
+      wrapperStyles.WebkitBackdropFilter = `blur(${options.bgBlur}px)`;
     }
 
     this.applyStyles(wrapper, wrapperStyles);
 
-    // Create the colored overlay
     const overlay = document.createElement("div");
     overlay.setAttribute("data-swn-overlay", "");
 
-    // Apply base styles to colored overlay
     const overlayStyles = {
       position: "absolute",
-      top: 0,
-      left: 0,
+      top: "0",
+      left: "0",
       width: "100%",
       height: "100%",
       backgroundColor: options.bgColor,
-      opacity: options.bgOpacity,
+      opacity: String(options.bgOpacity),
     };
 
     this.applyStyles(overlay, overlayStyles);
-
-    // Add overlay to wrapper
     wrapper.appendChild(overlay);
     return wrapper;
   }
@@ -155,12 +191,11 @@ class SWN {
     const container = document.createElement("div");
     container.setAttribute("data-swn-container", "");
 
-    // ARIA attributes
     container.setAttribute("role", "dialog");
     container.setAttribute("aria-modal", "true");
 
     const positionStyles = this.getPositionStyles(options.position);
-    positionStyles.zIndex = options.zIndex + 1;
+    positionStyles.zIndex = String(options.zIndex + 1);
     this.applyStyles(container, positionStyles);
 
     const templateId = options.template
@@ -215,54 +250,52 @@ class SWN {
       }
     }
 
-    // Apply content
     const titleElement = noticeElement.querySelector("[data-swn-title]");
     const bodyElement = noticeElement.querySelector("[data-swn-body]");
     const okButton = noticeElement.querySelector("[data-swn-ok]");
     const cancelButton = noticeElement.querySelector("[data-swn-cancel]");
     const inputElement = noticeElement.querySelector("[data-swn-input]");
 
+    const id = this._generateId();
+
     if (titleElement) {
       titleElement.textContent = options.titleText;
-      titleElement.id = "swn-title-" + Date.now();
+      titleElement.id = "swn-title-" + id;
       container.setAttribute("aria-labelledby", titleElement.id);
     }
     if (bodyElement) {
       bodyElement.textContent = message;
-      bodyElement.id = "swn-body-" + Date.now();
+      bodyElement.id = "swn-body-" + id;
       container.setAttribute("aria-describedby", bodyElement.id);
     }
     if (okButton) okButton.textContent = options.buttonText;
 
-    // Handle Cancel Button Visibility
     if (cancelButton) {
       if (type === "alert") {
         cancelButton.style.display = "none";
       } else {
         cancelButton.textContent = options.cancelText;
-        cancelButton.style.display = ""; // Reset display
+        cancelButton.style.display = "";
       }
     }
 
-    // Handle Input Visibility
     if (inputElement) {
       if (type === "prompt") {
         inputElement.placeholder = options.inputPlaceholder;
         inputElement.value = options.defaultValue;
-        inputElement.style.display = ""; // Reset display
+        inputElement.style.display = "";
       } else {
         inputElement.style.display = "none";
       }
     }
 
-    // Apply custom attributes
     const notice = noticeElement.querySelector("[data-swn]");
     if (notice) {
       notice.setAttribute("data-swn-position", options.position);
       notice.setAttribute("data-swn-bg-color", options.bgColor);
-      notice.setAttribute("data-swn-bg-opacity", options.bgOpacity);
-      notice.setAttribute("data-swn-bg-blur", options.bgBlur);
-      notice.setAttribute("data-swn-z-index", options.zIndex);
+      notice.setAttribute("data-swn-bg-opacity", String(options.bgOpacity));
+      notice.setAttribute("data-swn-bg-blur", String(options.bgBlur));
+      notice.setAttribute("data-swn-z-index", String(options.zIndex));
     }
 
     container.appendChild(noticeElement);
@@ -301,11 +334,12 @@ class SWN {
       document.body.appendChild(container);
       document.body.style.overflow = "hidden";
 
+      this._activeOverlays.push({ overlay, container });
+
       const okButton = container.querySelector("[data-swn-ok]");
       const cancelButton = container.querySelector("[data-swn-cancel]");
       const inputElement = container.querySelector("[data-swn-input]");
 
-      // Focus management
       const focusableElements = container.querySelectorAll(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       );
@@ -313,14 +347,46 @@ class SWN {
       const lastFocusableElement =
         focusableElements[focusableElements.length - 1];
 
+      let resolved = false;
+
       const cleanup = () => {
+        if (resolved) return;
+        resolved = true;
         document.removeEventListener("keydown", handleKeyDown);
-        document.body.removeChild(overlay);
-        document.body.removeChild(container);
+
+        const animation = currentOptions.animation;
+        if (animation) {
+          const animStyles = this._getAnimationStyles(animation);
+          const noticeEl = container.querySelector("[data-swn]") || container;
+          if (animStyles.exit) {
+            this.applyStyles(noticeEl, animStyles.exit);
+          }
+          const exitDuration = animation.duration || 200;
+          setTimeout(() => {
+            if (overlay.parentNode) document.body.removeChild(overlay);
+            if (container.parentNode) document.body.removeChild(container);
+          }, exitDuration);
+        } else {
+          if (overlay.parentNode) document.body.removeChild(overlay);
+          if (container.parentNode) document.body.removeChild(container);
+        }
+
         this.openCount--;
+        this._activeOverlays = this._activeOverlays.filter(
+          (item) => item.container !== container
+        );
         if (this.openCount === 0) {
           document.body.style.overflow = "";
         }
+
+        if (typeof currentOptions.onClose === "function") {
+          currentOptions.onClose();
+        }
+      };
+
+      const resolveAndCleanup = (value) => {
+        cleanup();
+        resolve(value);
       };
 
       const handleKeyDown = (e) => {
@@ -328,8 +394,7 @@ class SWN {
         const isEscPressed = e.key === "Escape" || e.keyCode === 27;
 
         if (isEscPressed) {
-          cleanup();
-          resolve(type === "prompt" ? null : false);
+          resolveAndCleanup(type === "prompt" ? null : false);
           return;
         }
 
@@ -338,15 +403,13 @@ class SWN {
         }
 
         if (e.shiftKey) {
-          // if shift key pressed for shift + tab combination
           if (document.activeElement === firstFocusableElement) {
-            lastFocusableElement.focus(); // add focus for the last focusable element
+            lastFocusableElement.focus();
             e.preventDefault();
           }
         } else {
-          // if tab key is pressed
           if (document.activeElement === lastFocusableElement) {
-            firstFocusableElement.focus(); // add focus for the first focusable element
+            firstFocusableElement.focus();
             e.preventDefault();
           }
         }
@@ -356,29 +419,63 @@ class SWN {
 
       if (okButton) {
         okButton.addEventListener("click", () => {
-          cleanup();
           if (type === "prompt") {
-            resolve(inputElement ? inputElement.value : null);
+            resolveAndCleanup(inputElement ? inputElement.value : null);
           } else if (type === "confirm") {
-            resolve(true);
+            resolveAndCleanup(true);
           } else {
-            resolve();
+            resolveAndCleanup();
           }
         });
       }
 
       if (cancelButton) {
         cancelButton.addEventListener("click", () => {
-          cleanup();
-          resolve(type === "prompt" ? null : false);
+          resolveAndCleanup(type === "prompt" ? null : false);
         });
       }
 
-      if (inputElement) {
+      if (currentOptions.closeOnOverlayClick) {
+        overlay.addEventListener("click", (e) => {
+          if (e.target === overlay || e.target.hasAttribute("data-swn-overlay")) {
+            resolveAndCleanup(type === "prompt" ? null : false);
+          }
+        });
+      }
+
+      if (currentOptions.animation) {
+        const animStyles = this._getAnimationStyles(currentOptions.animation);
+        const noticeEl = container.querySelector("[data-swn]") || container;
+        if (animStyles.enter) {
+          this.applyStyles(noticeEl, animStyles.enter);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              this.applyStyles(noticeEl, animStyles.active || {});
+            });
+          });
+        }
+      }
+
+      if (type === "prompt" && inputElement) {
         inputElement.focus();
-        okButton.focus();
+      } else if (firstFocusableElement) {
+        firstFocusableElement.focus();
+      }
+
+      if (typeof currentOptions.onOpen === "function") {
+        currentOptions.onOpen();
       }
     });
+  }
+
+  destroy() {
+    for (const item of this._activeOverlays.slice()) {
+      if (item.overlay.parentNode) document.body.removeChild(item.overlay);
+      if (item.container.parentNode) document.body.removeChild(item.container);
+    }
+    this._activeOverlays = [];
+    this.openCount = 0;
+    document.body.style.overflow = "";
   }
 
   getOptionsFromElement(element) {
@@ -393,8 +490,17 @@ class SWN {
     if (dataset.swnBgColor) options.bgColor = dataset.swnBgColor;
     if (dataset.swnBgOpacity)
       options.bgOpacity = parseFloat(dataset.swnBgOpacity);
-    if (dataset.swnBgBlur) options.bgBlur = parseInt(dataset.swnBgBlur);
-    if (dataset.swnZIndex) options.zIndex = parseInt(dataset.swnZIndex);
+    if (dataset.swnBgBlur) options.bgBlur = parseInt(dataset.swnBgBlur, 10);
+    if (dataset.swnZIndex) options.zIndex = parseInt(dataset.swnZIndex, 10);
+    if (dataset.swnCloseOnOverlayClick)
+      options.closeOnOverlayClick = dataset.swnCloseOnOverlayClick === "true";
+    if (dataset.swnAnimation) {
+      try {
+        options.animation = JSON.parse(dataset.swnAnimation);
+      } catch (e) {
+        options.animation = { type: dataset.swnAnimation };
+      }
+    }
 
     return options;
   }
@@ -430,7 +536,6 @@ class SWN {
       ) {
         options = this.getOptionsFromElement(document.activeElement);
       }
-      this.options.defaultValue = defaultValue;
       return await this.showPrompt(message, {
         defaultValue,
         ...options,
@@ -445,9 +550,7 @@ class SWN {
   }
 }
 
-// Auto-initialization
 document.addEventListener("DOMContentLoaded", () => {
-  // Check for template with child having data-swn
   const templates = document.querySelectorAll("template");
   let hasValidTemplate = false;
 
@@ -458,11 +561,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Check for trigger element
   const trigger = document.querySelector("[data-swn-trigger]");
 
   if (hasValidTemplate && trigger) {
-    // Just install the library, options will be resolved at runtime
     const swn = new SWN();
     swn.install();
   }

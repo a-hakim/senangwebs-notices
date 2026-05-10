@@ -134,6 +134,8 @@ You can automatically initialize the library without writing any JavaScript by u
 - `data-swn-bg-opacity`: Overlay opacity
 - `data-swn-bg-blur`: Overlay blur amount
 - `data-swn-z-index`: Z-index of the modal
+- `data-swn-close-on-overlay-click`: Set to `"true"` to close on overlay click
+- `data-swn-animation`: Animation config as JSON string (e.g., `'{"type":"fade","duration":300}'`) or just type name (e.g., `"fade"`)
 
 **Note:** When using auto-initialization, the library dynamically resolves options from the element that triggered the alert/confirm/prompt. This means you can have multiple buttons with different configurations (e.g., different positions or titles) all using the same global `alert()` function.
 
@@ -154,6 +156,10 @@ const notices = new SWN({
   zIndex: 9999, // Base z-index
   inputPlaceholder: "Enter your response...", // Prompt input placeholder
   defaultValue: "", // Default value for prompt input
+  closeOnOverlayClick: false, // Close when clicking overlay backdrop
+  animation: null, // Animation config: { type: "fade"|"slide-up"|"slide-down"|"scale", duration: 200 }
+  onOpen: null, // Callback when notice opens
+  onClose: null, // Callback when notice closes
 });
 ```
 
@@ -181,6 +187,40 @@ The library uses these data attributes for templating:
 - `data-swn-cancel`: Cancel button (for confirm/prompt)
 - `data-swn-input`: Input field (for prompt)
 
+### animations
+
+The `animation` option supports the following types:
+
+- `fade`: Fade in/out
+- `slide-up`: Slide up on enter, slide down on exit
+- `slide-down`: Slide down on enter, slide up on exit
+- `scale`: Scale in/out
+
+```javascript
+// Per-call animation
+await notices.show("Hello!", { animation: { type: "fade", duration: 300 } });
+```
+
+### Overlay Click to Close
+
+Set `closeOnOverlayClick: true` to allow users to dismiss the notice by clicking the backdrop overlay.
+
+```javascript
+const notices = new SWN({ closeOnOverlayClick: true });
+await notices.show("Click outside to close!");
+```
+
+### Callbacks
+
+Use `onOpen` and `onClose` callbacks to hook into the notice lifecycle.
+
+```javascript
+const notices = new SWN({
+  onOpen: () => console.log("Notice opened"),
+  onClose: () => console.log("Notice closed"),
+});
+```
+
 ## Methods
 
 - `show(message)`: Display an alert dialog
@@ -188,6 +228,7 @@ The library uses these data attributes for templating:
 - `showPrompt(message)`: Display a prompt dialog
 - `install()`: Replace native dialog functions
 - `uninstall()`: Restore native dialog functions
+- `destroy()`: Programmatically close all active notice dialogs
 
 ## Browser Support
 
