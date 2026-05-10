@@ -2,6 +2,8 @@
 
 SenangWebs Notices (SWN) is a lightweight JavaScript library that replaces native browser dialogs (alert, confirm, prompt) with customizable, modern-looking notifications. It provides a flexible way to create stylish modal dialogs with various positioning options and visual effects.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
+
 ## Features
 
 - Replace native browser dialogs (alert, confirm, prompt) with customizable alternatives
