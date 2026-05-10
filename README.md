@@ -1,19 +1,30 @@
 # SenangWebs Notices (SWN)
 
-SenangWebs Notices (SWN) is a lightweight JavaScript library that replaces native browser dialogs (alert, confirm, prompt) with customizable, modern-looking notifications. It provides a flexible way to create stylish modal dialogs with various positioning options and visual effects.
+SenangWebs Notices (SWN) is a lightweight JavaScript library that replaces native browser dialogs (alert, confirm, prompt) with customizable, modern-looking notifications. It provides a flexible way to create stylish modal dialogs, toasts, and prompts with various positioning options, animations, and a template-driven design.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
 
 ## Features
 
 - Replace native browser dialogs (alert, confirm, prompt) with customizable alternatives
+- **Toast notifications** — non-blocking, auto-dismissing, stackable toasts
+- **`fire()` API** — SweetAlert2-style structured result objects
+- **`queue()`** — display notices sequentially
 - Multiple positioning options (center, top, bottom, corners, etc.)
 - Backdrop blur effect support
 - Customizable overlay colors and opacity
-- Template-based customization
+- Template-based customization — you bring the HTML, SWN brings the behavior
 - Promise-based async/await support
-- Focus management for accessibility
-- No external dependencies
+- Auto-dismiss timer with optional progress bar
+- Close button (×) support
+- HTML content rendering
+- Input types: text, email, password, number, textarea
+- Async input validation with `preConfirm`
+- Focus trapping and restoration for accessibility
+- Enter key submits prompt input
+- Custom DOM events for extensibility
+- Default CSS stylesheet included (optional — use with templates for full control)
+- No external dependencies (~8KB gzipped JS + CSS)
 
 ## Installation
 
@@ -25,220 +36,345 @@ npm install senangwebs-notices
 
 ### Using a CDN
 
-Include SenangWebs Notices directly in your HTML file using unpkg:
+Include both the JS and CSS (or use your own styles with templates):
 
 ```html
-<script src="https://unpkg.com/senangwebs-notices@latest/dist/swn.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/senangwebs-notices@latest/dist/swn.min.css">
+<script src="https://unpkg.com/senangwebs-notices@latest/dist/swn.min.js"></script>
+```
+
+**Note:** The CSS is optional. If you use custom templates with Tailwind or your own CSS, you can skip `swn.min.css`. Source maps are available as `swn.js.map` and `swn.css.map` for debugging.
+
+## Quick Start
+
+```javascript
+const swn = new SWN();
+
+// Simple alert
+await swn.show("Hello World!");
+
+// Confirm dialog
+const confirmed = await swn.showConfirm("Are you sure?");
+
+// Prompt dialog
+const name = await swn.showPrompt("Enter your name:");
+
+// Structured result with fire()
+const result = await swn.fire({
+  type: "confirm",
+  body: "Delete this item?",
+  titleText: "Confirm",
+});
+if (result.isConfirmed) {
+  // User clicked OK
+}
+
+// Toast notification
+await swn.showToast("Saved successfully!", {
+  position: "top right",
+  timer: 3000,
+  animation: { type: "slide-down", duration: 250 },
+});
+
+// Replace native dialogs
+swn.install();
+alert("This uses SWN!");
+swn.uninstall(); // restore native dialogs
 ```
 
 ## Usage
 
-1. Initialize the library:
+### `fire()` — Structured Result API
+
+The `fire()` method always returns a `SwNResult` object, making it easy to handle all outcomes:
 
 ```javascript
-const notices = new SWN({
-  // Optional configuration
-  titleText: "Custom Title",
-  buttonText: "OK",
+const result = await swn.fire({
+  type: "confirm",          // "alert" | "confirm" | "prompt" | "toast"
+  body: "Are you sure?",
+  titleText: "Confirm",
+  buttonText: "Delete",
   cancelText: "Cancel",
-  position: "center",
-  bgColor: "#000000",
-  bgOpacity: 0.5,
-  bgBlur: 3,
-  zIndex: 9999,
+  animation: { type: "scale", duration: 200 },
+  showCloseButton: true,
 });
 
-// Replace native dialogs (optional)
-notices.install();
+// result: { isConfirmed: boolean, isDismissed: boolean, value: any }
 ```
 
-2. Use directly or through native dialog functions:
+**Result Object:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `isConfirmed` | `boolean` | `true` if user clicked the OK button |
+| `isDismissed` | `boolean` | `true` if user cancelled, pressed Escape, clicked overlay, closed, or timer expired |
+| `value` | `any` | For prompts: the input string. For confirms: `true`. For alerts: `undefined`. `null` when dismissed. |
+
+### Convenience Methods
 
 ```javascript
-// Using native functions (after install())
-alert("Hello World!");
-const confirmed = await confirm("Are you sure?");
-const name = await prompt("Enter your name:", "John Doe");
-
-// Using library methods directly
-await notices.show("Hello World!");
-const confirmed = await notices.showConfirm("Are you sure?");
-const name = await notices.showPrompt("Enter your name:");
+await swn.show("Hello!");                      // → undefined
+const ok = await swn.showConfirm("Continue?"); // → true | false
+const name = await swn.showPrompt("Name?");    // → string | null
 ```
 
-3. Custom template example:
+### Toast Notifications
+
+```javascript
+await swn.showToast("File saved!", {
+  position: "top right",
+  timer: 3000,
+  animation: { type: "slide-down" },
+  showCloseButton: true,
+});
+```
+
+Toasts differ from modals:
+- No overlay/backdrop
+- No focus trap
+- `role="status"` + `aria-live="polite"` for screen readers
+- Stack vertically when multiple toasts share the same position
+- Auto-dismiss with `timer`
+
+### Auto-Dismiss Timer
+
+```javascript
+await swn.fire({
+  type: "alert",
+  body: "This will close in 3 seconds",
+  timer: 3000,
+  timerProgressBar: true,
+});
+```
+
+The timer pauses when the user hovers over the notice. Include a `[data-swn-timer-bar]` element in your template to show a progress bar, or use the default CSS which provides one.
+
+### Close Button
+
+Set `showCloseButton: true` to show a × button. It uses the `[data-swn-close]` attribute — if your template has one, it'll be shown; otherwise SWN creates one automatically for non-template notices.
+
+```javascript
+await swn.show("Click × to close", { showCloseButton: true });
+```
+
+### HTML Content
+
+By default, `body` text is inserted as plain text (XSS-safe). Set `html: true` to render HTML:
+
+```javascript
+await swn.fire({
+  body: "<strong>Bold</strong> and <em>italic</em> text",
+  html: true,
+});
+```
+
+### Input Types & Validation
+
+```javascript
+const result = await swn.fire({
+  type: "prompt",
+  body: "Enter your email:",
+  inputType: "email",
+  inputPlaceholder: "you@example.com",
+  inputAttributes: { maxlength: "100", required: "" },
+  preConfirm: (value) => {
+    if (!value || !value.includes("@")) {
+      throw new Error("Please enter a valid email");
+    }
+    return value.trim();
+  },
+});
+```
+
+Supported `inputType` values: `"text"` (default), `"email"`, `"password"`, `"number"`, `"textarea"`
+
+The `preConfirm` function runs after the user clicks OK. If it throws an error, the notice stays open and the message is shown in the `[data-swn-validation]` element. Return a Promise for async validation.
+
+### Queue
+
+Display notices sequentially:
+
+```javascript
+const results = await swn.queue([
+  { type: "confirm", body: "Step 1: Agree to terms?" },
+  { type: "prompt", body: "Step 2: Enter your name:", inputType: "text" },
+  { type: "alert", body: "Step 3: All done!" },
+]);
+// results is an array of SwNResult objects
+```
+
+### Custom Events
+
+SWN dispatches `CustomEvent`s on the notice container:
+
+| Event | When |
+|-------|------|
+| `swn:open` | Notice is added to the DOM |
+| `swn:close` | Notice is removed from the DOM |
+| `swn:confirm` | User clicks OK |
+| `swn:cancel` | User clicks Cancel |
+
+```javascript
+document.addEventListener("swn:confirm", (e) => {
+  console.log("Confirmed!", e.detail);
+});
+```
+
+### Custom Templates
 
 ```html
 <template id="custom-template">
   <div data-swn class="your-custom-classes">
     <div data-swn-title></div>
     <div data-swn-body></div>
+    <input type="text" data-swn-input class="custom-input" />
+    <div data-swn-validation class="text-red-500 text-sm"></div>
     <div data-swn-buttons>
-      <button data-swn-cancel></button>
-      <button data-swn-ok></button>
+      <button data-swn-cancel>Cancel</button>
+      <button data-swn-ok>OK</button>
     </div>
+    <button data-swn-close aria-label="Close">&times;</button>
+    <div data-swn-timer-bar></div>
   </div>
 </template>
 
 <script>
-  const notices = new SWN({
-    template: "#custom-template",
-  });
+  const notices = new SWN({ template: "#custom-template" });
 </script>
 ```
 
-### 4. Auto-Initialization via HTML Attributes
-
-You can automatically initialize the library without writing any JavaScript by using HTML attributes.
-
-1.  **Create a Template**: Define a template with the `data-swn` attribute on a child element.
-2.  **Add Triggers**: Add `data-swn-trigger` to any element (e.g., a button) and configure options using `data-swn-*` attributes.
-
-**Example:**
+### Auto-Initialization via HTML Attributes
 
 ```html
-<!-- Template -->
 <template id="my-notice">
   <div data-swn class="custom-modal">
     <div data-swn-title></div>
     <div data-swn-body></div>
-    <!-- Input is automatically shown for prompt() -->
-    <input type="text" data-swn-input class="custom-input" />
+    <button data-swn-close aria-label="Close">&times;</button>
     <div data-swn-buttons>
-      <!-- Cancel button is automatically shown for confirm() and prompt() -->
       <button data-swn-cancel>Cancel</button>
       <button data-swn-ok>OK</button>
     </div>
   </div>
 </template>
 
-<!-- Trigger Button -->
 <button
-  onclick="alert('Hello World!')"
+  onclick="alert('Hello!')"
   data-swn-trigger
   data-swn-template="#my-notice"
-  data-swn-title="My Custom Alert"
-  data-swn-position="top-right"
-  data-swn-ok-text="Got it!"
+  data-swn-title="Hello"
+  data-swn-position="top right"
+  data-swn-show-close-button="true"
+  data-swn-timer="5000"
+  data-swn-timer-progress-bar="true"
 >
   Show Alert
 </button>
 ```
 
-**Supported Attributes on Trigger:**
+**Supported Trigger Attributes:**
 
-- `data-swn-title`: Custom title text
+- `data-swn-title`: Title text
 - `data-swn-ok-text`: OK button text
 - `data-swn-cancel-text`: Cancel button text
-- `data-swn-template`: Selector for the template to use (e.g., `#my-notice`)
-- `data-swn-position`: Position of the modal (e.g., `center`, `top right`)
-- `data-swn-bg-color`: Overlay background color
+- `data-swn-template`: Template selector
+- `data-swn-position`: Dialog position
+- `data-swn-bg-color`: Overlay color
 - `data-swn-bg-opacity`: Overlay opacity
-- `data-swn-bg-blur`: Overlay blur amount
-- `data-swn-z-index`: Z-index of the modal
-- `data-swn-close-on-overlay-click`: Set to `"true"` to close on overlay click
-- `data-swn-animation`: Animation config as JSON string (e.g., `'{"type":"fade","duration":300}'`) or just type name (e.g., `"fade"`)
-
-**Note:** When using auto-initialization, the library dynamically resolves options from the element that triggered the alert/confirm/prompt. This means you can have multiple buttons with different configurations (e.g., different positions or titles) all using the same global `alert()` function.
+- `data-swn-bg-blur`: Overlay blur (px)
+- `data-swn-z-index`: Z-index
+- `data-swn-close-on-overlay-click`: `"true"` to close on overlay click
+- `data-swn-show-close-button`: `"true"` to show × button
+- `data-swn-html`: `"true"` to render HTML content
+- `data-swn-timer`: Auto-dismiss timer (ms)
+- `data-swn-timer-progress-bar`: `"true"` to show timer progress bar
+- `data-swn-input-type`: Input type for prompt
+- `data-swn-animation`: Animation config (JSON or type string)
 
 ## Configuration Options
 
-### Initialization Options
-
 ```javascript
-const notices = new SWN({
-  titleText: "Notice", // Default title
-  buttonText: "OK", // Text for OK button
-  cancelText: "Cancel", // Text for Cancel button
-  template: "#custom-template", // Template selector
-  position: "center", // Dialog position
-  bgColor: "#000000", // Overlay color
-  bgOpacity: 0.5, // Overlay opacity (0-1)
-  bgBlur: 0, // Background blur in pixels
-  zIndex: 9999, // Base z-index
-  inputPlaceholder: "Enter your response...", // Prompt input placeholder
-  defaultValue: "", // Default value for prompt input
-  closeOnOverlayClick: false, // Close when clicking overlay backdrop
-  animation: null, // Animation config: { type: "fade"|"slide-up"|"slide-down"|"scale", duration: 200 }
-  onOpen: null, // Callback when notice opens
-  onClose: null, // Callback when notice closes
+const swn = new SWN({
+  titleText: "Notice",
+  buttonText: "OK",
+  cancelText: "Cancel",
+  template: "#custom-template",
+  position: "center",
+  bgColor: "#000000",
+  bgOpacity: 0.5,
+  bgBlur: 0,
+  zIndex: 9999,
+  inputPlaceholder: "Enter your response...",
+  defaultValue: "",
+  inputType: "text",
+  inputAttributes: {},
+  preConfirm: null,
+  closeOnOverlayClick: false,
+  showCloseButton: false,
+  html: false,
+  animation: null,
+  timer: null,
+  timerProgressBar: false,
+  onOpen: null,
+  onClose: null,
 });
 ```
 
 ### Supported Positions
 
-- `center` (default): Center of the screen
-- `top`: Top center
-- `top left`: Top left corner
-- `top right`: Top right corner
-- `bottom`: Bottom center
-- `bottom left`: Bottom left corner
-- `bottom right`: Bottom right corner
-- `left`: Middle left
-- `right`: Middle right
+`center` (default), `top`, `top left`, `top right`, `bottom`, `bottom left`, `bottom right`, `left`, `right`
 
-### Data Attributes
+### Animations
 
-The library uses these data attributes for templating:
+`fade`, `slide-up`, `slide-down`, `scale` — each accepts an optional `duration` (default `200ms`):
+
+```javascript
+await swn.show("Hello!", { animation: { type: "fade", duration: 300 } });
+```
+
+### Data Attributes (Template)
 
 - `data-swn`: Main notice container
 - `data-swn-title`: Title container
-- `data-swn-body`: Message body container
+- `data-swn-body`: Message body (plain text or HTML if `html: true`)
 - `data-swn-buttons`: Buttons container
 - `data-swn-ok`: OK button
-- `data-swn-cancel`: Cancel button (for confirm/prompt)
+- `data-swn-cancel`: Cancel button
 - `data-swn-input`: Input field (for prompt)
-
-### animations
-
-The `animation` option supports the following types:
-
-- `fade`: Fade in/out
-- `slide-up`: Slide up on enter, slide down on exit
-- `slide-down`: Slide down on enter, slide up on exit
-- `scale`: Scale in/out
-
-```javascript
-// Per-call animation
-await notices.show("Hello!", { animation: { type: "fade", duration: 300 } });
-```
-
-### Overlay Click to Close
-
-Set `closeOnOverlayClick: true` to allow users to dismiss the notice by clicking the backdrop overlay.
-
-```javascript
-const notices = new SWN({ closeOnOverlayClick: true });
-await notices.show("Click outside to close!");
-```
-
-### Callbacks
-
-Use `onOpen` and `onClose` callbacks to hook into the notice lifecycle.
-
-```javascript
-const notices = new SWN({
-  onOpen: () => console.log("Notice opened"),
-  onClose: () => console.log("Notice closed"),
-});
-```
+- `data-swn-close`: Close button (×)
+- `data-swn-validation`: Validation error message
+- `data-swn-timer-bar`: Timer progress bar element
 
 ## Methods
 
-- `show(message)`: Display an alert dialog
-- `showConfirm(message)`: Display a confirmation dialog
-- `showPrompt(message)`: Display a prompt dialog
-- `install()`: Replace native dialog functions
-- `uninstall()`: Restore native dialog functions
-- `destroy()`: Programmatically close all active notice dialogs
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `show(message, options?)` | `Promise<undefined>` | Display an alert |
+| `showConfirm(message, options?)` | `Promise<boolean>` | Display a confirm dialog |
+| `showPrompt(message, options?)` | `Promise<string\|null>` | Display a prompt dialog |
+| `showToast(message, options?)` | `Promise<SwNResult>` | Display a toast notification |
+| `showNotice(message, type, options?)` | `Promise<any>` | Display a notice by type |
+| `fire(options)` | `Promise<SwNResult>` | Display a notice with structured result |
+| `queue(steps)` | `Promise<SwNResult[]>` | Display notices sequentially |
+| `install()` | `void` | Replace native dialog functions |
+| `uninstall()` | `void` | Restore native dialog functions |
+| `destroy()` | `void` | Close all active notices and resolve pending promises |
+
+## Default CSS
+
+Include `dist/swn.css` for a ready-to-use default style. This provides styling for all SWN elements including the toast variant, close button, validation errors, and timer progress bar. You can override any of these styles or skip the CSS entirely and use your own classes with custom templates.
+
+## Accessibility
+
+- **ARIA attributes**: Dialog containers have `role="dialog"` + `aria-modal="true"`. Toasts use `role="status"` + `aria-live="polite"`
+- **Focus trapping**: Tab and Shift+Tab cycle within open dialogs (not toasts)
+- **Focus restoration**: Focus returns to the previously active element on close
+- **Keyboard**: Escape closes dialogs; Enter submits prompt input
+- **Labels**: `aria-labelledby` and `aria-describedby` link title and body
 
 ## Browser Support
 
-SenangWebs Notices works on all modern browsers that support:
-
-- ES6+ features (Promise, async/await)
-- CSS Flexbox
-- backdrop-filter (optional, for blur effects)
+SWN works on all modern browsers supporting ES6+ (Promise, async/await), CSS Flexbox, and `backdrop-filter` (optional, for blur effects).
 
 ## Contributing
 
@@ -246,13 +382,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
-
-## Acknowledgments
-
-- Inspired by the need for more customizable dialog alternatives
-- Thanks to all contributors who have helped improve this library
-
-## Support
-
-If you encounter any issues or have questions, please file an issue on the GitHub repository.
+MIT License — see the [LICENSE.md](LICENSE.md) file for details.

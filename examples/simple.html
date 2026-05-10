@@ -3,91 +3,107 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SenangWebs Notices Demo</title>
+    <title>SenangWebs Notices — Simple HTML Attributes</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../dist/swn.min.css" />
   </head>
 
   <body class="bg-gray-100">
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h4 class="text-xl lg:text-2xl capitalize font-bold mb-4">
-        Simple HTML Attributes Examples
-      </h4>
-      <div
-        class="bg-white border border-neutral-200 rounded-lg lg:rounded-2xl p-4 mb-8 flex gap-4"
-      >
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 class="text-2xl font-bold mb-2 text-gray-800">Simple HTML Attributes</h1>
+      <p class="text-gray-500 mb-6">No JavaScript needed — just add <code class="bg-gray-200 px-1 rounded">data-swn-trigger</code> and attributes to any button.</p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <button
           onclick="alert('Hello World!')"
           data-swn-trigger
           data-swn-template="#my-notice"
           data-swn-position="center"
-          data-swn-title="Alert demo using HTML attributes"
+          data-swn-title="Alert demo"
           data-swn-ok-text="OK!"
-          data-swn-cancel-text="Cancel!"
-          class="bg-purple-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80"
+          class="bg-purple-600 text-white rounded-lg text-base font-semibold px-6 h-12 flex items-center justify-center hover:opacity-80"
         >
-          HTML attributes alert
+          Alert
         </button>
         <button
-          onclick="prompt('Hello World!')"
+          onclick="confirm('Are you sure?')"
           data-swn-trigger
           data-swn-template="#my-notice"
-          data-swn-position="top left"
-          data-swn-title="Prompt demo using HTML attributes"
-          data-swn-ok-text="OK!"
-          data-swn-cancel-text="Cancel!"
-          class="bg-emerald-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80"
+          data-swn-position="top right"
+          data-swn-title="Confirm demo"
+          data-swn-ok-text="Yes"
+          data-swn-cancel-text="No"
+          class="bg-emerald-600 text-white rounded-lg text-base font-semibold px-6 h-12 flex items-center justify-center hover:opacity-80"
         >
-          HTML attributes prompt
+          Confirm (top right)
         </button>
         <button
-          onclick="confirm('Hello World!')"
+          onclick="prompt('Enter your name:', 'John')"
           data-swn-trigger
           data-swn-template="#my-notice"
-          data-swn-position="bottom right"
-          data-swn-title="Confirm demo using HTML attributes"
-          data-swn-ok-text="OK!"
-          data-swn-cancel-text="Cancel!"
-          class="bg-blue-600 text-white rounded-lg text-lg font-semibold px-6 w-full lg:max-w-max h-12 flex items-center justify-center hover:opacity-80"
+          data-swn-position="bottom"
+          data-swn-title="Prompt demo"
+          data-swn-ok-text="Submit"
+          data-swn-cancel-text="Skip"
+          class="bg-blue-600 text-white rounded-lg text-base font-semibold px-6 h-12 flex items-center justify-center hover:opacity-80"
         >
-          HTML attributes confirm
+          Prompt (bottom)
+        </button>
+        <button
+          onclick="alert('With close button!')"
+          data-swn-trigger
+          data-swn-template="#my-notice"
+          data-swn-position="center"
+          data-swn-title="Close button"
+          data-swn-show-close-button="true"
+          class="bg-rose-600 text-white rounded-lg text-base font-semibold px-6 h-12 flex items-center justify-center hover:opacity-80"
+        >
+          Close Button
+        </button>
+        <button
+          onclick="alert('Overlay click to close!')"
+          data-swn-trigger
+          data-swn-template="#my-notice"
+          data-swn-position="center"
+          data-swn-title="Overlay click"
+          data-swn-close-on-overlay-click="true"
+          class="bg-amber-600 text-white rounded-lg text-base font-semibold px-6 h-12 flex items-center justify-center hover:opacity-80"
+        >
+          Overlay Click
+        </button>
+        <button
+          onclick="alert('Auto closes in 3s!')"
+          data-swn-trigger
+          data-swn-template="#my-notice"
+          data-swn-position="center"
+          data-swn-title="Timer (3s)"
+          data-swn-timer="3000"
+          data-swn-timer-progress-bar="true"
+          class="bg-cyan-600 text-white rounded-lg text-base font-semibold px-6 h-12 flex items-center justify-center hover:opacity-80"
+        >
+          Timer (3s)
         </button>
       </div>
+
+      <p class="text-sm text-gray-400 text-center">View page source to see the HTML attributes in action.</p>
     </main>
 
-    <!-- Default Template -->
     <template id="my-notice">
-      <div
-        data-swn
-        class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[600px]"
-      >
-        <div
-          data-swn-title
-          class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base lg:text-lg capitalize font-bold m-0"
-        ></div>
+      <div data-swn class="grid border-neutral-200 border-2 rounded-xl bg-white w-full min-w-[300px] max-w-[500px] relative">
+        <div data-swn-title class="py-2 px-4 border-b border-neutral-200 flex justify-between items-center text-base font-bold m-0"></div>
         <div data-swn-body class="py-2 px-4"></div>
         <div class="px-4">
-          <input
-            type="text"
-            data-swn-input
-            class="w-full px-3 py-2 border rounded-md mb-2"
-          />
+          <input type="text" data-swn-input class="w-full px-3 py-2 border rounded-md mb-2" />
         </div>
-        <div
-          data-swn-buttons
-          class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2"
-        >
-          <button
-            data-swn-cancel
-            class="bg-gray-500 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"
-          ></button>
-          <button
-            data-swn-ok
-            class="bg-teal-600 text-white rounded-lg text-base font-semibold px-4 w-full lg:max-w-max h-10 flex items-center justify-center hover:opacity-80"
-          ></button>
+        <div data-swn-buttons class="py-2 px-4 border-t border-neutral-200 flex justify-end gap-2">
+          <button data-swn-cancel class="bg-gray-500 text-white rounded-lg text-sm font-semibold px-4 h-9 flex items-center justify-center hover:opacity-80"></button>
+          <button data-swn-ok class="bg-teal-600 text-white rounded-lg text-sm font-semibold px-4 h-9 flex items-center justify-center hover:opacity-80"></button>
         </div>
+        <button data-swn-close type="button" aria-label="Close" class="absolute top-1 right-2 text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
+        <div data-swn-timer-bar class="h-1 bg-teal-400 rounded-b-xl"></div>
       </div>
     </template>
 
-    <script src="../dist/swn.js"></script>
+    <script src="../dist/swn.min.js"></script>
   </body>
 </html>
