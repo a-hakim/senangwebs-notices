@@ -21,6 +21,7 @@ SenangWebs Notices (SWN) is a lightweight JavaScript library that replaces nativ
 - Input types: text, email, password, number, textarea
 - Async input validation with `preConfirm`
 - Focus trapping and restoration for accessibility
+- Modal-only scroll locking that restores the page's previous inline overflow style
 - Enter key submits prompt input
 - Custom DOM events for extensibility
 - Default CSS stylesheet included (optional — use with templates for full control)
@@ -132,6 +133,7 @@ await swn.showToast("File saved!", {
 Toasts differ from modals:
 - No overlay/backdrop
 - No focus trap
+- No page scroll lock
 - `role="status"` + `aria-live="polite"` for screen readers
 - Stack vertically when multiple toasts share the same position
 - Auto-dismiss with `timer`
@@ -369,6 +371,7 @@ Include `dist/swn.css` for a ready-to-use default style. This provides styling f
 - **ARIA attributes**: Dialog containers have `role="dialog"` + `aria-modal="true"`. Toasts use `role="status"` + `aria-live="polite"`
 - **Focus trapping**: Tab and Shift+Tab cycle within open dialogs (not toasts)
 - **Focus restoration**: Focus returns to the previously active element on close
+- **Scroll restoration**: Modals lock body scrolling; the last modal to close restores the previous inline overflow style. Toasts do not affect scrolling.
 - **Keyboard**: Escape closes dialogs; Enter submits prompt input
 - **Labels**: `aria-labelledby` and `aria-describedby` link title and body
 

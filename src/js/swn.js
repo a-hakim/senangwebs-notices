@@ -1,7 +1,27 @@
 import '../css/swn.css';
 
 let _idCounter = 0;
-let _globalOpenCount = 0;
+let _globalModalCount = 0;
+let _originalBodyOverflow = null;
+
+function lockBodyScroll() {
+  if (_globalModalCount === 0) {
+    _originalBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  }
+  _globalModalCount++;
+}
+
+function unlockBodyScroll() {
+  if (_globalModalCount > 0) {
+    _globalModalCount--;
+  }
+
+  if (_globalModalCount === 0 && _originalBodyOverflow !== null) {
+    document.body.style.overflow = _originalBodyOverflow;
+    _originalBodyOverflow = null;
+  }
+}
 
 function createResult(isConfirmed, value) {
   return {
@@ -550,7 +570,6 @@ class SWN {
 
     return new Promise(function (resolve) {
       var previousActiveElement = document.activeElement;
-      _globalOpenCount++;
 
       var result = self.createNoticeElement(message, type, currentOptions);
       var container = result.container;
@@ -573,7 +592,7 @@ class SWN {
       document.body.appendChild(container);
 
       if (!isToast) {
-        document.body.style.overflow = "hidden";
+        lockBodyScroll();
       }
 
       var activeNotice = {
@@ -697,14 +716,10 @@ class SWN {
           if (container.parentNode) container.remove();
         }
 
-        _globalOpenCount--;
         self._activeOverlays = self._activeOverlays.filter(function (item) { return item.container !== container; });
 
         if (!isToast) {
-          if (_globalOpenCount <= 0) {
-            _globalOpenCount = 0;
-            document.body.style.overflow = "";
-          }
+          unlockBodyScroll();
           if (previousActiveElement && typeof previousActiveElement.focus === "function") {
             try {
               previousActiveElement.focus();
@@ -947,15 +962,12 @@ class SWN {
         item.currentOptions.onClose();
       }
 
-      _globalOpenCount--;
+      if (!isToast) {
+        unlockBodyScroll();
+      }
     }
 
     this._activeOverlays = [];
-
-    if (_globalOpenCount <= 0) {
-      _globalOpenCount = 0;
-      document.body.style.overflow = "";
-    }
   }
 
   getOptionsFromElement(element) {
