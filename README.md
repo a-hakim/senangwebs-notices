@@ -25,7 +25,7 @@ SenangWebs Notices (SWN) is a lightweight JavaScript library that replaces nativ
 - Enter key submits prompt input
 - Custom DOM events for extensibility
 - Default CSS stylesheet included (optional — use with templates for full control)
-- No external dependencies (~8KB gzipped JS + CSS)
+- No runtime dependencies; optional default CSS
 
 ## Installation
 
@@ -35,16 +35,43 @@ SenangWebs Notices (SWN) is a lightweight JavaScript library that replaces nativ
 npm install senangwebs-notices
 ```
 
+```javascript
+import SWN from 'senangwebs-notices';
+import 'senangwebs-notices/style.css'; // optional default styles
+
+const notices = new SWN();
+await notices.show('Hello!');
+```
+
+CommonJS consumers can use `const SWN = require('senangwebs-notices')`. The package provides real ESM and CommonJS entrypoints, while `dist/swn.js` and `dist/swn.min.js` retain the browser global `window.SWN`. Legacy CSS imports such as `senangwebs-notices/dist/swn.css` also work.
+
+TypeScript declarations are included for both module systems:
+
+```typescript
+import SWN from 'senangwebs-notices';
+
+const options: SWN.Options<number> = {
+  inputType: 'number',
+  preConfirm: value => Number(value),
+};
+const notices = new SWN();
+const result = await notices.fire<number>({ ...options, type: 'prompt', body: 'Enter a number' });
+```
+
+Importing and constructing SWN during server rendering is safe. Display methods reject with a descriptive error outside a browser or before `document.body` exists. `install()` requires a browser; `destroy()` and `uninstall()` are safe during server rendering. Stylesheets are explicitly imported rather than injected into the page.
+
 ### Using a CDN
 
 Include both the JS and CSS (or use your own styles with templates):
 
 ```html
-<link rel="stylesheet" href="https://unpkg.com/senangwebs-notices@latest/dist/swn.min.css">
-<script src="https://unpkg.com/senangwebs-notices@latest/dist/swn.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/senangwebs-notices@2.0.2/dist/swn.min.css">
+<script src="https://unpkg.com/senangwebs-notices@2.0.2/dist/swn.min.js"></script>
 ```
 
 **Note:** The CSS is optional. If you use custom templates with Tailwind or your own CSS, you can skip `swn.min.css`. Source maps are available as `swn.js.map` and `swn.css.map` for debugging.
+
+Pin CDN URLs to the version you deploy. These repository changes must be released before they become available from a CDN; the version above is the current package version, not a claim that unreleased changes are published.
 
 ## Quick Start
 
@@ -83,6 +110,8 @@ alert("This uses SWN!");
 swn.uninstall(); // restore native dialogs
 ```
 
+Installing SWN makes native dialog functions **asynchronous**. Always await replaced dialogs: `const accepted = await window.confirm('Continue?')`. A Promise is truthy, so existing synchronous code such as `if (confirm(...))` must be updated. `alert()` also stops blocking the following statements. Repeated installation is idempotent; uninstalling restores the previous installed SWN owner or original functions, while preserving replacements made by unrelated code. `destroy()` closes notices but does not uninstall the native integration.
+
 ## Usage
 
 ### `fire()` — Structured Result API
@@ -109,7 +138,7 @@ const result = await swn.fire({
 |-------|------|-------------|
 | `isConfirmed` | `boolean` | `true` if user clicked the OK button |
 | `isDismissed` | `boolean` | `true` if user cancelled, pressed Escape, clicked overlay, closed, or timer expired |
-| `value` | `any` | For prompts: the input string. For confirms: `true`. For alerts: `undefined`. `null` when dismissed. |
+| `value` | `any` | Confirmed prompts: input or transformed value; confirms: `true`; alerts: `undefined`. Dismissed prompts: `null`; confirms: `false`; alerts/toasts: `undefined`. |
 
 ### Convenience Methods
 
@@ -138,6 +167,8 @@ Toasts differ from modals:
 - Stack vertically when multiple toasts share the same position
 - Auto-dismiss with `timer`
 
+Stacks are shared across SWN instances and loaded module formats, and reflow when content sizes change. Toasts default to top-center when the instance position is `center`; `left` and `right` map to the corresponding top corners. A toast has no default timer: supply `timer` to auto-dismiss it. An active modal makes background content, including toasts, inert until the modal closes.
+
 ### Auto-Dismiss Timer
 
 ```javascript
@@ -149,7 +180,7 @@ await swn.fire({
 });
 ```
 
-The timer pauses when the user hovers over the notice. Include a `[data-swn-timer-bar]` element in your template to show a progress bar, or use the default CSS which provides one.
+The timer pauses when the user hovers over the notice or moves keyboard focus within it, then resumes after leaving. Initial modal focus does not pause the timer. With `timerProgressBar: true`, SWN supplies a `[data-swn-timer-bar]` element if one is missing; include the default CSS or style this element yourself.
 
 ### Close Button
 
@@ -162,6 +193,8 @@ await swn.show("Click × to close", { showCloseButton: true });
 ### HTML Content
 
 By default, `body` text is inserted as plain text (XSS-safe). Set `html: true` to render HTML:
+
+**`html: true` is trusted-content mode.** SWN does not sanitize HTML. Sanitize untrusted content before passing it to SWN; templates and input attribute configuration must also come from trusted application code.
 
 ```javascript
 await swn.fire({
@@ -192,6 +225,8 @@ Supported `inputType` values: `"text"` (default), `"email"`, `"password"`, `"num
 
 The `preConfirm` function runs after the user clicks OK. If it throws an error, the notice stays open and the message is shown in the `[data-swn-validation]` element. Return a Promise for async validation.
 
+Native constraints (`required`, email format, `min`, `max`, `pattern`, etc.) are checked before `preConfirm`. Async validation disables OK and suppresses repeated submissions, including Enter. Cancellation or destruction ignores late validation completions. Returning `undefined`, synchronously or asynchronously, retains the input value. Template controls are replaced when switching between an input and textarea. Error messages become visible and are associated with the input for assistive technology.
+
 ### Queue
 
 Display notices sequentially:
@@ -205,6 +240,8 @@ const results = await swn.queue([
 // results is an array of SwNResult objects
 ```
 
+Ordinary dismissal continues to the next step. `destroy()` stops every queue currently running on that instance, closes its notices immediately, and lets each queue Promise resolve with the results collected so far, including the dismissed current step. The instance can then be reused. Animated notices finish their exit before the next queued notice opens.
+
 ### Custom Events
 
 SWN dispatches `CustomEvent`s on the notice container:
@@ -212,15 +249,17 @@ SWN dispatches `CustomEvent`s on the notice container:
 | Event | When |
 |-------|------|
 | `swn:open` | Notice is added to the DOM |
-| `swn:close` | Notice is removed from the DOM |
-| `swn:confirm` | User clicks OK |
-| `swn:cancel` | User clicks Cancel |
+| `swn:close` | Immediately before DOM removal, after any exit animation |
+| `swn:confirm` | A submit attempt through OK or Enter, before validation |
+| `swn:cancel` | User clicks Cancel, before closure |
 
 ```javascript
 document.addEventListener("swn:confirm", (e) => {
   console.log("Confirmed!", e.detail);
 });
 ```
+
+Events bubble while the notice container is connected and retain `{ type }` in `detail`. `swn:confirm` describes a submission attempt; use the resolved result to determine whether validation succeeded. The display Promise settles after removal. `onOpen` errors close the notice and reject its Promise. `onClose` runs once after removal; thrown errors are logged without preventing cleanup or Promise settlement.
 
 ### Custom Templates
 
@@ -244,6 +283,10 @@ document.addEventListener("swn:confirm", (e) => {
   const notices = new SWN({ template: "#custom-template" });
 </script>
 ```
+
+Templates must contain exactly one top-level `[data-swn]` element. Modal templates require `[data-swn-ok]`; prompt templates also require an input or textarea with `[data-swn-input]`. Use actual buttons for keyboard-accessible actions. A missing selector falls back to the built-in notice, while malformed selectors, non-template targets, and invalid template structures reject before mounting. SWN adds missing close buttons when requested, prompt validation elements, and enabled progress bars. Provide custom styling for these elements if omitting the default CSS.
+
+Custom templates control input widths and margins. For a full-width field inside a padded wrapper, use `width: 100%` (or Tailwind `w-full`); SWN reserves its default input insets for built-in prompts.
 
 ### Auto-Initialization via HTML Attributes
 
@@ -375,9 +418,27 @@ Include `dist/swn.css` for a ready-to-use default style. This provides styling f
 - **Keyboard**: Escape closes dialogs; Enter submits prompt input
 - **Labels**: `aria-labelledby` and `aria-describedby` link title and body
 
+Only the top modal receives keyboard input, even across multiple instances or module formats. Hidden and disabled controls are excluded from focus cycling. Background body elements and lower dialogs become inert with their original `inert` and `aria-hidden` attributes restored on closure. Added body elements are also isolated while a modal is open. Prompts receive an accessible input name and announce validation errors. Long dialogs scroll within the viewport; animations honor `prefers-reduced-motion`.
+
 ## Browser Support
 
-SWN works on all modern browsers supporting ES6+ (Promise, async/await), CSS Flexbox, and `backdrop-filter` (optional, for blur effects).
+SWN targets the latest two major versions of Chrome/Edge, Firefox, and Safari, including mobile Safari. It uses modern browser features including `inert`, ResizeObserver, and dynamic viewport units. `backdrop-filter` is optional for blur effects. Internet Explorer is not supported. Automated checks cover Chromium, Firefox, and WebKit; real-device mobile Safari and screen-reader checks remain part of release review.
+
+## Development and release checks
+
+Use Node 22.22.2+ on the 22.x line, or Node 24.15+ on the 24.x line, for the development tools.
+
+```bash
+npm ci
+npm run build
+npm test
+npm run test:package
+npx playwright install chromium firefox webkit
+npm run test:browser
+npm audit --audit-level=high
+```
+
+The unit suite covers lifecycle, validation, cancellation, and integration ownership. Browser regressions cover real focus, backdrop hit testing, toast geometry, narrow screens, reduced motion, ESM integration, and automated accessibility checks. The package check extracts an npm tarball and verifies SSR, ESM/CommonJS, CSS exports, legacy bundles, and TypeScript consumption. `npm pack` and `npm publish` rebuild the distribution through `prepack`; `dist/` remains tracked. CI runs the release checks on Node 22 and 24 and rejects distribution drift and high/critical dependency advisories. Publishing is a separate maintainer action after choosing the release version and updating pinned CDN examples.
 
 ## Contributing
 

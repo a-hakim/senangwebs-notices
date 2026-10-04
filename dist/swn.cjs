@@ -1,14 +1,4 @@
-(function webpackUniversalModuleDefinition(root, factory) {
-	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory();
-	else if(typeof define === 'function' && define.amd)
-		define("SWN", [], factory);
-	else if(typeof exports === 'object')
-		exports["SWN"] = factory();
-	else
-		root["SWN"] = factory();
-})(globalThis, () => {
-return /******/ (() => { // webpackBootstrap
+/******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
 /******/ 	// The require scope
 /******/ 	const __webpack_require__ = {};
@@ -925,9 +915,7 @@ if (typeof document !== 'undefined') {
 /* harmony export */   "default", 0, __WEBPACK_DEFAULT_EXPORT__
 /* harmony export */ ]);
 
-__webpack_exports__ = __webpack_exports__["default"];
-/******/ 	return __webpack_exports__;
+module.exports = __webpack_exports__["default"];
 /******/ })()
 ;
-});
-//# sourceMappingURL=swn.js.map
+//# sourceMappingURL=swn.cjs.map

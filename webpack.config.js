@@ -1,88 +1,36 @@
-const path = require('path');
+const path = require('node:path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 
-const commonConfig = {
-  entry: './src/js/swn.js',
-  module: {
-    rules: [
-      {
-        test: /\.js$/,
-        exclude: /node_modules/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            presets: ['@babel/preset-env']
-          }
-        }
-      },
-      {
-        test: /\.css$/,
-        use: [MiniCssExtractPlugin.loader, 'css-loader']
-      }
-    ]
-  },
-  plugins: [
-    new MiniCssExtractPlugin({
-      filename: 'swn.css'
-    })
-  ],
-  output: {
-    path: path.resolve(__dirname, 'dist'),
-    library: {
-      name: 'SWN',
-      type: 'umd',
-      export: 'default',
-      umdNamedDefine: true
-    },
-    globalObject: 'this'
-  }
-};
-
-module.exports = [
-  {
-    ...commonConfig,
-    mode: 'development',
-    output: {
-      ...commonConfig.output,
-      filename: 'swn.js',
-    },
-    devtool: 'source-map',
-    optimization: {
-      minimize: false,
-    },
-    plugins: [
-      new MiniCssExtractPlugin({
-        filename: 'swn.css'
-      })
-    ]
-  },
-  {
-    ...commonConfig,
+function config(filename, library, minified, cssFilename) {
+  return {
     mode: 'production',
+    entry: './src/js/swn.js',
+    target: ['web', 'es2022'],
+    experiments: { outputModule: library.type === 'module' },
     output: {
-      ...commonConfig.output,
-      filename: 'swn.min.js',
+      path: path.resolve(__dirname, 'dist'), filename, library,
+      globalObject: 'globalThis',
     },
-    optimization: {
-      minimize: true,
-      minimizer: [
-        new TerserPlugin({
-          extractComments: false,
-          terserOptions: {
-            format: {
-              comments: false,
-            }
-          },
-        }),
-        new CssMinimizerPlugin(),
+    module: {
+      rules: [
+        { test: /\.js$/, exclude: /node_modules/, use: { loader: 'babel-loader', options: { babelrc: false, presets: [['@babel/preset-env', { targets: { chrome: '120', firefox: '120', safari: '17' }, modules: false }]] } } },
+        { test: /\.css$/, use: [MiniCssExtractPlugin.loader, 'css-loader'] },
       ],
     },
-    plugins: [
-      new MiniCssExtractPlugin({
-        filename: 'swn.min.css'
-      })
-    ]
-  }
+    plugins: [new MiniCssExtractPlugin({ filename: cssFilename })],
+    devtool: minified ? false : 'source-map',
+    optimization: {
+      minimize: minified,
+      minimizer: [new TerserPlugin({ extractComments: false }), new CssMinimizerPlugin()],
+    },
+  };
+}
+
+module.exports = [
+  config('swn.js', { name: 'SWN', type: 'umd', export: 'default', umdNamedDefine: true }, false, 'swn.css'),
+  config('swn.min.js', { name: 'SWN', type: 'umd', export: 'default', umdNamedDefine: true }, true, 'swn.min.css'),
+  config('swn.mjs', { type: 'module' }, false, 'swn.esm.css'),
+  config('swn.cjs', { type: 'commonjs2', export: 'default' }, false, 'swn.cjs.css'),
 ];

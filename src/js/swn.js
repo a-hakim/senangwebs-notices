@@ -1,1060 +1,621 @@
 import '../css/swn.css';
 
-let _idCounter = 0;
-let _globalModalCount = 0;
-let _originalBodyOverflow = null;
+const DEFAULTS = {
+  titleText: 'Notice', buttonText: 'OK', cancelText: 'Cancel', template: null,
+  position: 'center', bgColor: '#000000', bgOpacity: 0.5, bgBlur: 0, zIndex: 9999,
+  inputPlaceholder: 'Enter your response...', defaultValue: '', inputType: 'text',
+  inputAttributes: {}, preConfirm: null, closeOnOverlayClick: false,
+  showCloseButton: false, animation: null, timer: null, timerProgressBar: false,
+  html: false, onOpen: null, onClose: null,
+};
+const TYPES = ['alert', 'confirm', 'prompt', 'toast'];
+const POSITIONS = ['center', 'top', 'top left', 'top right', 'bottom', 'bottom left', 'bottom right', 'left', 'right'];
+const ANIMATIONS = ['fade', 'slide-up', 'slide-down', 'scale'];
+const INPUT_TYPES = ['text', 'email', 'password', 'number', 'textarea'];
+const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+// Share ownership across instances AND concurrently loaded UMD/ESM/CJS builds.
+const stateKey = Symbol.for('senangwebs-notices.v2.state');
+const shared = globalThis[stateKey] || (globalThis[stateKey] = { id: 0, documents: new WeakMap() });
 
-function lockBodyScroll() {
-  if (_globalModalCount === 0) {
-    _originalBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+function requireDocument() {
+  if (typeof document === 'undefined' || !document.body) {
+    throw new Error('SWN requires a browser document with a body to display or install notices.');
   }
-  _globalModalCount++;
+  return document;
 }
 
-function unlockBodyScroll() {
-  if (_globalModalCount > 0) {
-    _globalModalCount--;
+function stateFor(doc) {
+  if (!shared.documents.has(doc)) {
+    shared.documents.set(doc, {
+      notices: [], isolated: new Map(), overflow: null, observer: null, returnFocus: null,
+      owners: [], originals: null, autoInstance: null, trigger: null, triggerTimer: null, captureTrigger: null,
+    });
   }
+  return shared.documents.get(doc);
+}
 
-  if (_globalModalCount === 0 && _originalBodyOverflow !== null) {
-    document.body.style.overflow = _originalBodyOverflow;
-    _originalBodyOverflow = null;
+function normalizeOptions(base, options = {}) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) throw new TypeError('SWN options must be an object.');
+  const result = { ...base };
+  for (const key of Object.keys(options)) {
+    if (options[key] !== undefined) result[key] = options[key];
   }
+  if (!POSITIONS.includes(result.position)) throw new TypeError('Unsupported SWN position.');
+  if (!INPUT_TYPES.includes(result.inputType)) throw new TypeError('Unsupported SWN inputType.');
+  for (const key of ['bgOpacity', 'bgBlur', 'zIndex']) {
+    if (!Number.isFinite(result[key])) throw new TypeError(`SWN ${key} must be a finite number.`);
+  }
+  if (result.bgOpacity < 0 || result.bgOpacity > 1 || result.bgBlur < 0) throw new RangeError('Invalid SWN overlay options.');
+  if (result.timer !== null && (!Number.isFinite(result.timer) || result.timer < 0)) throw new RangeError('SWN timer must be a nonnegative number or null.');
+  if (!result.inputAttributes || typeof result.inputAttributes !== 'object' || Array.isArray(result.inputAttributes)) throw new TypeError('SWN inputAttributes must be an object.');
+  result.inputAttributes = { ...result.inputAttributes };
+  for (const key of ['preConfirm', 'onOpen', 'onClose']) {
+    if (result[key] !== null && typeof result[key] !== 'function') throw new TypeError(`SWN ${key} must be a function or null.`);
+  }
+  if (result.template !== null && typeof result.template !== 'string') throw new TypeError('SWN template must be a selector or null.');
+  if (result.animation !== null) {
+    if (!result.animation || typeof result.animation !== 'object') throw new TypeError('SWN animation must be an object or null.');
+    result.animation = { type: 'fade', duration: 200, ...result.animation };
+    if (!ANIMATIONS.includes(result.animation.type) || !Number.isFinite(result.animation.duration) || result.animation.duration < 0) throw new TypeError('Invalid SWN animation.');
+  }
+  return result;
 }
 
 function createResult(isConfirmed, value) {
-  return {
-    isConfirmed: isConfirmed,
-    isDismissed: !isConfirmed,
-    value: value,
-  };
+  return { isConfirmed, isDismissed: !isConfirmed, value };
 }
 
-function calcStackOffset(position, existingToasts) {
-  var offset = 0;
-  for (var i = 0; i < existingToasts.length; i++) {
-    var t = existingToasts[i];
-    var rect = t.container.getBoundingClientRect();
-    if (rect.height > 0) {
-      offset += rect.height + 8;
-    } else {
-      offset += 60;
+function topModal(state) {
+  return state.notices.filter(item => item.type !== 'toast' && !item.finished)
+    .sort((a, b) => b.currentOptions.zIndex - a.currentOptions.zIndex || b.id - a.id)[0];
+}
+
+function focusables(container) {
+  return Array.from(container.querySelectorAll(FOCUSABLE)).filter(element => {
+    if (element.disabled || element.tabIndex < 0 || element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+    for (let ancestor = element; ancestor && ancestor !== container.parentElement; ancestor = ancestor.parentElement) {
+      const style = container.ownerDocument.defaultView.getComputedStyle(ancestor);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
     }
-  }
-  return offset;
+    return true;
+  });
 }
 
-function getStackBaseline(position) {
-  var topPositions = ["top", "top left", "top right"];
-  var bottomPositions = ["bottom", "bottom left", "bottom right"];
-  if (topPositions.indexOf(position) !== -1) return "top";
-  if (bottomPositions.indexOf(position) !== -1) return "bottom";
-  return "top";
+function focusNotice(item) {
+  const candidates = focusables(item.container);
+  const input = item.type === 'prompt' ? item.container.querySelector('[data-swn-input]') : null;
+  const target = candidates.includes(item.lastFocused) ? item.lastFocused : candidates.includes(input) ? input : candidates[0] || item.container;
+  target.focus({ preventScroll: true });
+}
+
+function restoreIsolation(state, element) {
+  const saved = state.isolated.get(element);
+  if (!saved) return;
+  if (saved.inert === null) element.removeAttribute('inert'); else element.setAttribute('inert', saved.inert);
+  if (saved.ariaHidden === null) element.removeAttribute('aria-hidden'); else element.setAttribute('aria-hidden', saved.ariaHidden);
+  state.isolated.delete(element);
+}
+
+function syncModals(doc, state) {
+  const top = topModal(state);
+  if (!top) {
+    for (const element of Array.from(state.isolated.keys())) restoreIsolation(state, element);
+    if (state.overflow !== null) {
+      doc.body.style.overflow = state.overflow;
+      state.overflow = null;
+    }
+    state.observer?.disconnect();
+    state.observer = null;
+    state.returnFocus = null;
+    return;
+  }
+  if (state.overflow === null) {
+    state.overflow = doc.body.style.overflow;
+    doc.body.style.overflow = 'hidden';
+    state.observer = new doc.defaultView.MutationObserver(() => syncModals(doc, state));
+    state.observer.observe(doc.body, { childList: true });
+  }
+  restoreIsolation(state, top.overlay);
+  if (!top.container.contains(doc.activeElement)) focusNotice(top);
+  for (const element of doc.body.children) {
+    if (element === top.overlay || ['SCRIPT', 'STYLE', 'TEMPLATE', 'LINK'].includes(element.tagName)) continue;
+    if (!state.isolated.has(element)) state.isolated.set(element, { inert: element.getAttribute('inert'), ariaHidden: element.getAttribute('aria-hidden') });
+    element.setAttribute('inert', '');
+    element.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function toastPosition(position) {
+  return position === 'center' ? 'top' : position === 'left' ? 'top left' : position === 'right' ? 'top right' : position;
+}
+
+function repositionToasts(state) {
+  const offsets = new Map();
+  for (const item of state.notices) {
+    if (item.type !== 'toast' || item.finished) continue;
+    const position = toastPosition(item.currentOptions.position);
+    const offset = offsets.get(position) || 0;
+    Object.assign(item.container.style, item.owner._getToastPositionStyles(position, offset, item.currentOptions.zIndex));
+    offsets.set(position, offset + (item.container.getBoundingClientRect().height || 60) + 8);
+  }
+}
+
+function element(doc, tag, attribute) {
+  const node = doc.createElement(tag);
+  if (attribute) node.setAttribute(attribute, '');
+  if (tag === 'button') node.type = 'button';
+  return node;
+}
+
+function reportCloseError(doc, error) {
+  // User hooks cannot prevent another instance from releasing its resources.
+  doc.defaultView.console.error('SWN onClose callback failed:', error);
 }
 
 class SWN {
   constructor(options = {}) {
-    this.options = {
-      titleText: options.titleText || "Notice",
-      buttonText: options.buttonText || "OK",
-      cancelText: options.cancelText || "Cancel",
-      template: options.template || null,
-      position: options.position || "center",
-      bgColor: options.bgColor || "#000000",
-      bgOpacity: options.bgOpacity || 0.5,
-      bgBlur: options.bgBlur || 0,
-      zIndex: options.zIndex || 9999,
-      inputPlaceholder: options.inputPlaceholder || "Enter your response...",
-      defaultValue: options.defaultValue || "",
-      inputType: options.inputType || "text",
-      inputAttributes: options.inputAttributes || {},
-      preConfirm: options.preConfirm || null,
-      closeOnOverlayClick: options.closeOnOverlayClick !== undefined ? options.closeOnOverlayClick : false,
-      showCloseButton: options.showCloseButton || false,
-      animation: options.animation || null,
-      timer: options.timer || null,
-      timerProgressBar: options.timerProgressBar || false,
-      html: options.html || false,
-      onOpen: options.onOpen || null,
-      onClose: options.onClose || null,
-    };
-
-    this.originalAlert = window.alert;
-    this.originalConfirm = window.confirm;
-    this.originalPrompt = window.prompt;
-
+    this.options = normalizeOptions(DEFAULTS, options);
+    this.originalAlert = typeof window === 'undefined' ? undefined : window.alert;
+    this.originalConfirm = typeof window === 'undefined' ? undefined : window.confirm;
+    this.originalPrompt = typeof window === 'undefined' ? undefined : window.prompt;
     this._activeOverlays = [];
-    this._queueRunning = false;
+    this._queueGeneration = 0;
+    this._installation = null;
   }
 
-  get openCount() {
-    return this._activeOverlays.length;
-  }
-
-  _generateId() {
-    return ++_idCounter;
-  }
+  get openCount() { return this._activeOverlays.length; }
+  _generateId() { return ++shared.id; }
+  applyStyles(node, styles) { Object.assign(node.style, styles); }
 
   _getAnimationStyles(animation) {
     if (!animation) return { enter: {}, active: {}, exit: {} };
-
-    var duration = animation.duration || 200;
-    var type = animation.type || "fade";
-
-    switch (type) {
-      case "fade":
-        return {
-          enter: { opacity: "0", transition: "opacity " + duration + "ms ease" },
-          active: { opacity: "1" },
-          exit: { opacity: "0", transition: "opacity " + duration + "ms ease" },
-        };
-      case "slide-up":
-        return {
-          enter: { opacity: "0", transform: "translateY(20px)", transition: "opacity " + duration + "ms ease, transform " + duration + "ms ease" },
-          active: { opacity: "1", transform: "translateY(0)" },
-          exit: { opacity: "0", transform: "translateY(20px)", transition: "opacity " + duration + "ms ease, transform " + duration + "ms ease" },
-        };
-      case "slide-down":
-        return {
-          enter: { opacity: "0", transform: "translateY(-20px)", transition: "opacity " + duration + "ms ease, transform " + duration + "ms ease" },
-          active: { opacity: "1", transform: "translateY(0)" },
-          exit: { opacity: "0", transform: "translateY(-20px)", transition: "opacity " + duration + "ms ease, transform " + duration + "ms ease" },
-        };
-      case "scale":
-        return {
-          enter: { opacity: "0", transform: "scale(0.9)", transition: "opacity " + duration + "ms ease, transform " + duration + "ms ease" },
-          active: { opacity: "1", transform: "scale(1)" },
-          exit: { opacity: "0", transform: "scale(0.9)", transition: "opacity " + duration + "ms ease, transform " + duration + "ms ease" },
-        };
-      default:
-        return { enter: {}, active: {}, exit: {} };
-    }
+    const duration = animation.duration ?? 200;
+    const transform = { 'slide-up': 'translateY(20px)', 'slide-down': 'translateY(-20px)', scale: 'scale(0.9)' }[animation.type];
+    const enter = { opacity: '0', transition: `opacity ${duration}ms ease, transform ${duration}ms ease` };
+    const active = { opacity: '1' };
+    if (transform) { enter.transform = transform; active.transform = 'none'; }
+    return { enter, active, exit: { ...enter } };
   }
 
-  _getToastPositionStyles(position, offset) {
-    var isTop = getStackBaseline(position) === "top";
-
-    var styles = {
-      position: "fixed",
-      display: "flex",
-      zIndex: String((this.options.zIndex || 9999) + 1),
+  _getToastPositionStyles(position, offset = 0, zIndex = this.options.zIndex) {
+    position = toastPosition(position);
+    const bottom = position.startsWith('bottom');
+    const styles = {
+      position: 'fixed', display: 'flex', width: 'max-content', maxWidth: 'calc(100% - 32px)',
+      top: bottom ? 'auto' : `${16 + offset}px`, bottom: bottom ? `${16 + offset}px` : 'auto',
+      left: 'auto', right: 'auto', transform: 'none', zIndex: String(zIndex + 1),
     };
-
-    if (isTop) {
-      styles.top = (16 + offset) + "px";
-    } else {
-      styles.bottom = (16 + offset) + "px";
-    }
-
-    switch (position) {
-      case "top":
-      case "bottom":
-        styles.left = "50%";
-        styles.transform = "translateX(-50%)";
-        break;
-      case "top left":
-      case "bottom left":
-        styles.left = "16px";
-        break;
-      case "top right":
-      case "bottom right":
-        styles.right = "16px";
-        break;
-      case "left":
-        styles.left = "16px";
-        styles.top = (16 + offset) + "px";
-        delete styles.bottom;
-        break;
-      case "right":
-        styles.right = "16px";
-        styles.top = (16 + offset) + "px";
-        delete styles.bottom;
-        break;
-      default:
-        styles.left = "50%";
-        styles.transform = "translateX(-50%)";
-    }
-
+    if (position.endsWith('left')) styles.left = '16px';
+    else if (position.endsWith('right')) styles.right = '16px';
+    else { styles.left = '50%'; styles.transform = 'translateX(-50%)'; }
     return styles;
   }
 
   getPositionStyles(position) {
-    var styles = {
-      position: "fixed",
-      display: "flex",
+    const vertical = position.startsWith('top') ? 'flex-start' : position.startsWith('bottom') ? 'flex-end' : 'center';
+    const horizontal = position.includes('left') ? 'flex-start' : position.includes('right') ? 'flex-end' : 'center';
+    return {
+      position: 'fixed', inset: '0', display: 'flex', boxSizing: 'border-box', padding: '16px',
+      alignItems: vertical, justifyContent: horizontal, pointerEvents: 'none',
     };
-
-    if (position === "center") {
-      styles.width = "100%";
-    }
-
-    switch (position) {
-      case "center":
-        styles.top = "0";
-        styles.left = "0";
-        styles.right = "0";
-        styles.bottom = "0";
-        styles.alignItems = "center";
-        styles.justifyContent = "center";
-        styles.padding = "1rem";
-        break;
-      case "top":
-        styles.top = "1rem";
-        styles.left = "50%";
-        styles.transform = "translateX(-50%)";
-        break;
-      case "top left":
-        styles.top = "1rem";
-        styles.left = "1rem";
-        styles.alignItems = "flex-start";
-        break;
-      case "top right":
-        styles.top = "1rem";
-        styles.right = "1rem";
-        styles.alignItems = "flex-start";
-        styles.justifyContent = "flex-end";
-        break;
-      case "bottom":
-        styles.bottom = "1rem";
-        styles.left = "50%";
-        styles.transform = "translateX(-50%)";
-        break;
-      case "bottom left":
-        styles.bottom = "1rem";
-        styles.left = "1rem";
-        styles.alignItems = "flex-end";
-        break;
-      case "bottom right":
-        styles.bottom = "1rem";
-        styles.right = "1rem";
-        styles.alignItems = "flex-end";
-        styles.justifyContent = "flex-end";
-        break;
-      case "left":
-        styles.left = "1rem";
-        styles.top = "50%";
-        styles.transform = "translateY(-50%)";
-        break;
-      case "right":
-        styles.right = "1rem";
-        styles.top = "50%";
-        styles.transform = "translateY(-50%)";
-        break;
-      default:
-        styles.top = "0";
-        styles.left = "0";
-        styles.right = "0";
-        styles.bottom = "0";
-        styles.alignItems = "center";
-        styles.justifyContent = "center";
-        styles.width = "100%";
-        styles.padding = "1rem";
-    }
-
-    return styles;
-  }
-
-  applyStyles(element, styles) {
-    Object.assign(element.style, styles);
   }
 
   createOverlay(options) {
-    var wrapper = document.createElement("div");
-    wrapper.setAttribute("data-swn-overlay-wrapper", "");
-
-    var wrapperStyles = {
-      position: "fixed",
-      top: "0",
-      left: "0",
-      width: "100%",
-      height: "100%",
-      zIndex: String(options.zIndex),
-    };
-
-    if (options.bgBlur > 0) {
-      wrapperStyles.backdropFilter = "blur(" + options.bgBlur + "px)";
-      wrapperStyles.WebkitBackdropFilter = "blur(" + options.bgBlur + "px)";
-    }
-
-    this.applyStyles(wrapper, wrapperStyles);
-
-    var overlay = document.createElement("div");
-    overlay.setAttribute("data-swn-overlay", "");
-
-    var overlayStyles = {
-      position: "absolute",
-      top: "0",
-      left: "0",
-      width: "100%",
-      height: "100%",
-      backgroundColor: options.bgColor,
-      opacity: String(options.bgOpacity),
-    };
-
-    this.applyStyles(overlay, overlayStyles);
+    const doc = requireDocument();
+    const wrapper = element(doc, 'div', 'data-swn-overlay-wrapper');
+    this.applyStyles(wrapper, { position: 'fixed', inset: '0', zIndex: String(options.zIndex) });
+    const overlay = element(doc, 'div', 'data-swn-overlay');
+    this.applyStyles(overlay, {
+      position: 'absolute', inset: '0', backgroundColor: options.bgColor, opacity: String(options.bgOpacity),
+    });
+    if (options.bgBlur > 0) this.applyStyles(wrapper, { backdropFilter: `blur(${options.bgBlur}px)`, WebkitBackdropFilter: `blur(${options.bgBlur}px)` });
     wrapper.appendChild(overlay);
     return wrapper;
   }
 
-  _applyInputAttributes(inputEl, attributes) {
-    if (!attributes || typeof attributes !== "object") return;
-    var keys = Object.keys(attributes);
-    for (var i = 0; i < keys.length; i++) {
-      inputEl.setAttribute(keys[i], attributes[keys[i]]);
+  _applyInputAttributes(input, attributes) {
+    for (const [key, value] of Object.entries(attributes)) {
+      if (value === false || value === null || value === undefined) input.removeAttribute(key);
+      else input.setAttribute(key, value === true ? '' : String(value));
     }
   }
 
   _createInput(type, options) {
-    if (type === "textarea") {
-      var ta = document.createElement("textarea");
-      ta.setAttribute("data-swn-input", "");
-      ta.className = "w-full px-3 py-2 border rounded-md mb-4";
-      ta.placeholder = options.inputPlaceholder || "Enter your response...";
-      ta.value = options.defaultValue || "";
-      this._applyInputAttributes(ta, options.inputAttributes);
-      return ta;
-    }
-    var input = document.createElement("input");
-    input.setAttribute("data-swn-input", "");
-    input.setAttribute("type", type || "text");
-    input.className = "w-full px-3 py-2 border rounded-md mb-4";
-    input.placeholder = options.inputPlaceholder || "Enter your response...";
-    input.value = options.defaultValue || "";
+    const input = element(requireDocument(), type === 'textarea' ? 'textarea' : 'input', 'data-swn-input');
+    if (type !== 'textarea') input.type = type;
     this._applyInputAttributes(input, options.inputAttributes);
+    input.placeholder = options.inputPlaceholder;
+    input.value = String(options.defaultValue ?? '');
     return input;
   }
 
   createNoticeElement(message, type, options) {
-    var noticeElement;
-    var container = document.createElement("div");
-    container.setAttribute("data-swn-container", "");
+    const doc = requireDocument();
+    const isToast = type === 'toast';
+    const container = element(doc, 'div', 'data-swn-container');
+    container.setAttribute('tabindex', '-1');
+    container.setAttribute('role', isToast ? 'status' : 'dialog');
+    if (isToast) { container.setAttribute('aria-live', 'polite'); container.setAttribute('aria-atomic', 'true'); }
+    else container.setAttribute('aria-modal', 'true');
+    this.applyStyles(container, isToast ? this._getToastPositionStyles(options.position, 0, options.zIndex) : { ...this.getPositionStyles(options.position), zIndex: '1' });
 
-    var isToast = type === "toast";
-
-    if (isToast) {
-      container.setAttribute("role", "status");
-      container.setAttribute("aria-live", "polite");
-    } else {
-      container.setAttribute("role", "dialog");
-      container.setAttribute("aria-modal", "true");
-    }
-
-    var positionStyles = this.getPositionStyles(options.position);
-    positionStyles.zIndex = String(options.zIndex + 1);
-    this.applyStyles(container, positionStyles);
-
-    var templateId = options.template
-      ? options.template
-      : type === "prompt"
-      ? "#prompt-template"
-      : type === "confirm"
-      ? "#confirm-template"
-      : isToast
-      ? "#toast-template"
-      : null;
-
-    var template = null;
-    if (templateId) {
-      template = document.querySelector(templateId);
-    }
-
-    var needsInput = type === "prompt";
-    var needsCancel = type === "confirm" || type === "prompt";
-
+    const selector = options.template || ({ prompt: '#prompt-template', confirm: '#confirm-template', toast: '#toast-template' }[type]);
+    const template = selector ? doc.querySelector(selector) : null;
+    if (template && template.tagName !== 'TEMPLATE') throw new TypeError('SWN template selector must identify a <template>.');
+    let notice;
     if (template) {
-      noticeElement = template.content.cloneNode(true);
+      const fragment = template.content.cloneNode(true);
+      const roots = fragment.querySelectorAll('[data-swn]');
+      if (roots.length !== 1 || roots[0].parentNode !== fragment || fragment.children.length !== 1) throw new TypeError('SWN templates require exactly one top-level [data-swn] element.');
+      notice = roots[0];
+      container.appendChild(fragment);
+      if (!isToast && !notice.querySelector('[data-swn-ok]')) throw new TypeError('SWN modal templates require a [data-swn-ok] control.');
+      if (type === 'prompt' && !notice.querySelector('input[data-swn-input], textarea[data-swn-input]')) throw new TypeError('SWN prompt templates require an input or textarea with [data-swn-input].');
     } else {
-      noticeElement = document.createElement("div");
-      noticeElement.setAttribute("data-swn", "");
-
-      if (isToast) {
-        noticeElement.innerHTML =
-          '<button data-swn-close type="button" aria-label="Close" style="position:absolute;top:4px;right:8px;background:transparent;border:none;font-size:18px;cursor:pointer;line-height:1;padding:0;color:inherit;opacity:0.5;">\u00d7</button>' +
-          '<div data-swn-title></div>' +
-          '<div data-swn-body></div>';
-      } else if (needsInput) {
-        var inputHtml = this._createInput(options.inputType, options).outerHTML;
-        noticeElement.innerHTML =
-          '<div data-swn-title></div>' +
-          '<div data-swn-body></div>' +
-          inputHtml +
-          '<div data-swn-validation></div>' +
-          '<div data-swn-buttons>' +
-            '<button data-swn-cancel></button>' +
-            '<button data-swn-ok></button>' +
-          '</div>';
-      } else if (needsCancel) {
-        noticeElement.innerHTML =
-          '<div data-swn-title></div>' +
-          '<div data-swn-body></div>' +
-          '<div data-swn-buttons>' +
-            '<button data-swn-cancel></button>' +
-            '<button data-swn-ok></button>' +
-          '</div>';
-      } else {
-        noticeElement.innerHTML =
-          '<div data-swn-title></div>' +
-          '<div data-swn-body></div>' +
-          '<div data-swn-buttons>' +
-            '<button data-swn-ok></button>' +
-          '</div>';
-      }
-    }
-
-    var titleElement = noticeElement.querySelector("[data-swn-title]");
-    var bodyElement = noticeElement.querySelector("[data-swn-body]");
-    var okButton = noticeElement.querySelector("[data-swn-ok]");
-    var cancelButton = noticeElement.querySelector("[data-swn-cancel]");
-    var inputElement = noticeElement.querySelector("[data-swn-input]");
-    var closeButton = noticeElement.querySelector("[data-swn-close]");
-    var validationElement = noticeElement.querySelector("[data-swn-validation]");
-
-    var id = this._generateId();
-
-    if (titleElement) {
-      titleElement.textContent = options.titleText;
-      titleElement.id = "swn-title-" + id;
+      notice = element(doc, 'div', 'data-swn');
+      notice.setAttribute('data-swn-built-in', '');
+      notice.append(element(doc, 'div', 'data-swn-title'), element(doc, 'div', 'data-swn-body'));
+      if (type === 'prompt') notice.appendChild(this._createInput(options.inputType, options));
       if (!isToast) {
-        container.setAttribute("aria-labelledby", titleElement.id);
+        const buttons = element(doc, 'div', 'data-swn-buttons');
+        if (type === 'confirm' || type === 'prompt') buttons.appendChild(element(doc, 'button', 'data-swn-cancel'));
+        buttons.appendChild(element(doc, 'button', 'data-swn-ok'));
+        notice.appendChild(buttons);
       }
+      container.appendChild(notice);
     }
-    if (bodyElement) {
-      if (options.html) {
-        bodyElement.innerHTML = message;
-      } else {
-        bodyElement.textContent = message;
+    this.applyStyles(notice, { pointerEvents: 'auto', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', minWidth: `min(${isToast ? 240 : 280}px, calc(100vw - 32px))` });
+    notice.setAttribute('data-swn-type', type);
+    for (const [key, value] of Object.entries({ position: options.position, 'bg-color': options.bgColor, 'bg-opacity': options.bgOpacity, 'bg-blur': options.bgBlur, 'z-index': options.zIndex })) notice.setAttribute(`data-swn-${key}`, String(value));
+    const id = this._generateId();
+    const title = notice.querySelector('[data-swn-title]');
+    const body = notice.querySelector('[data-swn-body]');
+    if (title) { title.textContent = options.titleText; title.id = `swn-title-${id}`; }
+    if (body) {
+      if (options.html) body.innerHTML = message; else body.textContent = message;
+      body.id = `swn-body-${id}`;
+    }
+    if (!isToast) {
+      if (title && String(options.titleText).trim()) container.setAttribute('aria-labelledby', title.id);
+      else container.setAttribute('aria-label', String(options.titleText || 'Notice'));
+      if (body) container.setAttribute('aria-describedby', body.id);
+    }
+    const ok = notice.querySelector('[data-swn-ok]');
+    const cancel = notice.querySelector('[data-swn-cancel]');
+    if (ok && !isToast) { ok.textContent = options.buttonText; if (ok.tagName === 'BUTTON') ok.type = 'button'; }
+    if (cancel) {
+      cancel.hidden = !['confirm', 'prompt'].includes(type);
+      if (!cancel.hidden) { cancel.textContent = options.cancelText; cancel.style.display = ''; }
+      if (cancel.tagName === 'BUTTON') cancel.type = 'button';
+    }
+    let input = notice.querySelector('[data-swn-input]');
+    if (type === 'prompt') {
+      const tag = options.inputType === 'textarea' ? 'TEXTAREA' : 'INPUT';
+      if (input.tagName !== tag) {
+        const replacement = element(doc, tag.toLowerCase(), 'data-swn-input');
+        for (const attr of input.attributes) if (attr.name !== 'type') replacement.setAttribute(attr.name, attr.value);
+        input.replaceWith(replacement);
+        input = replacement;
       }
-      bodyElement.id = "swn-body-" + id;
-      if (!isToast) {
-        container.setAttribute("aria-describedby", bodyElement.id);
-      }
-    }
-
-    if (okButton && !isToast) {
-      okButton.textContent = options.buttonText;
-    }
-
-    if (cancelButton) {
-      if (!needsCancel && !isToast) {
-        cancelButton.style.display = "none";
-      } else {
-        cancelButton.textContent = options.cancelText;
-        cancelButton.style.display = "";
-      }
-    }
-
-    if (inputElement && needsInput) {
-      if (template) {
-        inputElement.placeholder = options.inputPlaceholder;
-        inputElement.value = options.defaultValue || "";
-        if (options.inputType && options.inputType !== "textarea") {
-          inputElement.setAttribute("type", options.inputType);
-        }
-        this._applyInputAttributes(inputElement, options.inputAttributes);
-        inputElement.style.display = "";
-      }
-    } else if (inputElement) {
-      inputElement.style.display = "none";
-    }
-
-    if (closeButton) {
-      if (options.showCloseButton || isToast) {
-        closeButton.style.display = "";
-      } else {
-        closeButton.style.display = "none";
-      }
-    }
-
-    if (validationElement) {
-      validationElement.textContent = "";
-    }
-
-    var notice = noticeElement.querySelector("[data-swn]");
-    if (notice) {
-      notice.setAttribute("data-swn-type", type);
-      notice.setAttribute("data-swn-position", options.position);
-      notice.setAttribute("data-swn-bg-color", options.bgColor);
-      notice.setAttribute("data-swn-bg-opacity", String(options.bgOpacity));
-      notice.setAttribute("data-swn-bg-blur", String(options.bgBlur));
-      notice.setAttribute("data-swn-z-index", String(options.zIndex));
-    }
-
-    container.appendChild(noticeElement);
-    return {
-      container: container,
-    };
+      if (tag === 'INPUT') input.type = options.inputType;
+      this._applyInputAttributes(input, options.inputAttributes);
+      input.value = String(options.defaultValue ?? '');
+      input.placeholder = options.inputPlaceholder;
+      input.hidden = false;
+      input.style.display = '';
+      if (!input.id) input.id = `swn-input-${id}`;
+      if (!input.hasAttribute('aria-label') && !input.hasAttribute('aria-labelledby') && !notice.querySelector(`label[for="${input.id.replace(/"/g, '\\"')}"]`)) input.setAttribute('aria-label', String(options.titleText || options.inputPlaceholder || 'Response'));
+      if (body) input.setAttribute('aria-describedby', [input.getAttribute('aria-describedby'), body.id].filter(Boolean).join(' '));
+      let validation = notice.querySelector('[data-swn-validation]');
+      if (!validation) { validation = element(doc, 'div', 'data-swn-validation'); input.after(validation); }
+      validation.id = `swn-validation-${id}`;
+      validation.textContent = '';
+      validation.hidden = true;
+      validation.setAttribute('aria-live', 'polite');
+      input.setAttribute('aria-describedby', [input.getAttribute('aria-describedby'), validation.id].filter(Boolean).join(' '));
+    } else if (input) input.hidden = true;
+    let close = notice.querySelector('[data-swn-close]');
+    if (!close && (options.showCloseButton || isToast)) { close = element(doc, 'button', 'data-swn-close'); close.textContent = '\u00d7'; notice.appendChild(close); }
+    if (close) { close.hidden = !options.showCloseButton && !isToast; close.setAttribute('aria-label', close.getAttribute('aria-label') || 'Close'); if (close.tagName === 'BUTTON') close.type = 'button'; }
+    let bar = notice.querySelector('[data-swn-timer-bar]');
+    if (!bar && options.timerProgressBar) { bar = element(doc, 'div', 'data-swn-timer-bar'); notice.appendChild(bar); }
+    if (bar) { bar.hidden = !options.timerProgressBar || !options.timer; bar.setAttribute('aria-hidden', 'true'); }
+    return { container };
   }
 
-  show(message, options) {
-    if (options === undefined) options = {};
-    return this._showInternal(message, "alert", options).then(function (result) {
-      return undefined;
-    });
+  show(message, options = {}) { return this._showInternal(message, 'alert', options).then(() => undefined); }
+  showConfirm(message, options = {}) { return this._showInternal(message, 'confirm', options).then(result => result.isConfirmed); }
+  showPrompt(message, options = {}) { return this._showInternal(message, 'prompt', options).then(result => result.isConfirmed ? result.value : null); }
+  showToast(message, options = {}) { return this._showInternal(message, 'toast', options); }
+  showNotice(message, type, options = {}) {
+    return this._showInternal(message, type, options).then(result => type === 'alert' ? undefined : type === 'confirm' ? result.isConfirmed : type === 'prompt' ? result.isConfirmed ? result.value : null : result);
   }
-
-  showPrompt(message, options) {
-    if (options === undefined) options = {};
-    return this._showInternal(message, "prompt", options).then(function (result) {
-      return result.isConfirmed ? result.value : null;
-    });
+  fire(options = {}) {
+    if (!options || typeof options !== 'object' || Array.isArray(options)) return Promise.reject(new TypeError('SWN fire options must be an object.'));
+    const { type = 'alert', body, message = '', ...callOptions } = options;
+    return this._showInternal(body !== undefined ? body : message, type, callOptions);
   }
-
-  showConfirm(message, options) {
-    if (options === undefined) options = {};
-    return this._showInternal(message, "confirm", options).then(function (result) {
-      return result.isConfirmed;
-    });
-  }
-
-  showToast(message, options) {
-    if (options === undefined) options = {};
-    return this._showInternal(message, "toast", options).then(function (result) {
-      return result;
-    });
-  }
-
-  showNotice(message, type, callOptions) {
-    if (callOptions === undefined) callOptions = {};
-    return this._showInternal(message, type, callOptions).then(function (result) {
-      if (type === "alert") return undefined;
-      if (type === "confirm") return result.isConfirmed;
-      if (type === "prompt") return result.isConfirmed ? result.value : null;
-      return result;
-    });
-  }
-
-  fire(options) {
-    var type = options.type || "alert";
-    var message = options.body !== undefined ? options.body : (options.message || "");
-    var callOptions = {};
-    var keys = Object.keys(options);
-    for (var i = 0; i < keys.length; i++) {
-      if (keys[i] !== "type" && keys[i] !== "body" && keys[i] !== "message") {
-        callOptions[keys[i]] = options[keys[i]];
-      }
+  async queue(steps) {
+    if (!Array.isArray(steps)) throw new TypeError('SWN queue steps must be an array.');
+    const generation = this._queueGeneration;
+    const results = [];
+    for (const step of steps) {
+      if (generation !== this._queueGeneration) break;
+      results.push(await this.fire(step));
     }
-    return this._showInternal(message, type, callOptions);
-  }
-
-  queue(steps) {
-    var self = this;
-    var results = [];
-
-    function runNext(index) {
-      if (index >= steps.length) {
-        return Promise.resolve(results);
-      }
-      return self.fire(steps[index]).then(function (result) {
-        results.push(result);
-        return runNext(index + 1);
-      });
-    }
-
-    return runNext(0);
+    return results;
   }
 
   _showInternal(message, type, callOptions) {
-    var self = this;
-    var currentOptions = {};
-    var optsKeys = Object.keys(this.options);
-    for (var i = 0; i < optsKeys.length; i++) {
-      currentOptions[optsKeys[i]] = this.options[optsKeys[i]];
-    }
-    var callKeys = Object.keys(callOptions);
-    for (var j = 0; j < callKeys.length; j++) {
-      currentOptions[callKeys[j]] = callOptions[callKeys[j]];
-    }
-
-    var isToast = type === "toast";
-
-    return new Promise(function (resolve) {
-      var previousActiveElement = document.activeElement;
-
-      var result = self.createNoticeElement(message, type, currentOptions);
-      var container = result.container;
-      var overlay = null;
-
-      var dismissReason = null;
-
-      if (!isToast) {
-        overlay = self.createOverlay(currentOptions);
-        document.body.appendChild(overlay);
-      } else {
-        var toastsAtPosition = self._activeOverlays.filter(function (item) {
-          return item.type === "toast" && item.currentOptions.position === currentOptions.position;
-        });
-        var offset = calcStackOffset(currentOptions.position, toastsAtPosition);
-        var toastStyles = self._getToastPositionStyles(currentOptions.position, offset);
-        self.applyStyles(container, toastStyles);
-      }
-
-      document.body.appendChild(container);
-
-      if (!isToast) {
-        lockBodyScroll();
-      }
-
-      var activeNotice = {
-        overlay: overlay,
-        container: container,
-        currentOptions: currentOptions,
-        type: type,
-        resolve: resolve,
-        previousActiveElement: previousActiveElement,
-        handleKeyDown: null,
-        timerId: null,
-        pauseTimer: null,
-        resumeTimer: null,
+    return new Promise((resolve, reject) => {
+      const doc = requireDocument();
+      if (!TYPES.includes(type)) throw new TypeError('Unsupported SWN notice type.');
+      const options = normalizeOptions(this.options, callOptions);
+      const { container } = this.createNoticeElement(message, type, options);
+      const state = stateFor(doc);
+      const isToast = type === 'toast';
+      const notice = container.querySelector('[data-swn]');
+      const overlay = isToast ? null : this.createOverlay(options);
+      const input = container.querySelector('[data-swn-input]');
+      const ok = container.querySelector('[data-swn-ok]');
+      const validation = container.querySelector('[data-swn-validation]');
+      const bar = container.querySelector('[data-swn-timer-bar]');
+      const animation = options.animation && !doc.defaultView.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? options.animation : null;
+      const item = {
+        id: this._generateId(), owner: this, overlay, container, currentOptions: options, type,
+        previousActiveElement: doc.activeElement, lastFocused: null, closing: false, finished: false,
+        timerId: null, exitTimer: null, resizeObserver: null, frames: new Set(), listeners: [], pending: false,
       };
-
-      self._activeOverlays.push(activeNotice);
-
-      var okButton = container.querySelector("[data-swn-ok]");
-      var cancelButton = container.querySelector("[data-swn-cancel]");
-      var inputElement = container.querySelector("[data-swn-input]");
-      var closeButton = container.querySelector("[data-swn-close]");
-      var validationElement = container.querySelector("[data-swn-validation]");
-      var timerBarElement = container.querySelector("[data-swn-timer-bar]");
-
-      var focusableElements = container.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      var firstFocusableElement = focusableElements[0];
-      var lastFocusableElement = focusableElements[focusableElements.length - 1];
-
-      var resolved = false;
-
-      var resolveWithResult = function (resultVal, reason) {
-        if (resolved) return;
-        resolved = true;
-        if (reason) dismissReason = reason;
-        cleanup();
-        resolve(resultVal);
+      const listen = (target, event, handler, capture = false) => {
+        target.addEventListener(event, handler, capture);
+        item.listeners.push(() => target.removeEventListener(event, handler, capture));
       };
-
-      var handleConfirm = function () {
-        var inputValue = inputElement ? inputElement.value : undefined;
-
-        if (typeof currentOptions.preConfirm === "function" && type === "prompt") {
-          var preResult;
-          try {
-            preResult = currentOptions.preConfirm(inputValue);
-          } catch (err) {
-            if (validationElement) {
-              validationElement.textContent = err.message || String(err);
-            }
-            return;
-          }
-
-          if (preResult && typeof preResult.then === "function") {
-            if (okButton) {
-              okButton.disabled = true;
-              okButton.textContent = "...";
-            }
-            preResult.then(function (validatedValue) {
-              resolveWithResult(createResult(true, validatedValue), "confirm");
-            }).catch(function (err) {
-              if (okButton) {
-                okButton.disabled = false;
-                okButton.textContent = currentOptions.buttonText;
-              }
-              if (validationElement) {
-                validationElement.textContent = err.message || String(err);
-              }
-            });
-            return;
-          }
-
-          resolveWithResult(createResult(true, preResult !== undefined ? preResult : inputValue), "confirm");
-          return;
-        }
-
-        if (type === "prompt") {
-          resolveWithResult(createResult(true, inputValue), "confirm");
-        } else if (type === "confirm") {
-          resolveWithResult(createResult(true, true), "confirm");
-        } else {
-          resolveWithResult(createResult(true, undefined), "confirm");
-        }
+      const frame = callback => {
+        const id = doc.defaultView.requestAnimationFrame(() => { item.frames.delete(id); if (!item.closing) callback(); });
+        item.frames.add(id);
       };
-
-      var dismiss = function (dismissVal) {
-        if (type === "prompt") {
-          resolveWithResult(createResult(false, null), dismissVal);
-        } else if (type === "confirm") {
-          resolveWithResult(createResult(false, false), dismissVal);
-        } else {
-          resolveWithResult(createResult(false, undefined), dismissVal);
-        }
+      let finalResult;
+      let finalError;
+      const finish = () => {
+        if (item.finished) return;
+        item.finished = true;
+        clearTimeout(item.exitTimer);
+        for (const remove of item.listeners) remove();
+        item.listeners = [];
+        this._dispatchEvent(container, 'swn:close', { type });
+        (overlay || container).remove();
+        restoreIsolation(state, overlay || container);
+        state.notices = state.notices.filter(other => other !== item);
+        this._activeOverlays = this._activeOverlays.filter(other => other !== item);
+        const returnFocus = state.returnFocus;
+        syncModals(doc, state);
+        if (!isToast && !topModal(state) && returnFocus?.isConnected && !returnFocus.closest('[inert]')) returnFocus.focus({ preventScroll: true });
+        repositionToasts(state);
+        if (finalError) reject(finalError); else resolve(finalResult);
+        try { options.onClose?.(); } catch (error) { reportCloseError(doc, error); }
       };
-
-      var cleanup = function () {
-        if (activeNotice.handleKeyDown) {
-          document.removeEventListener("keydown", activeNotice.handleKeyDown);
-        }
-
-        if (activeNotice.timerId) {
-          clearTimeout(activeNotice.timerId);
-          activeNotice.timerId = null;
-        }
-
-        var animation = currentOptions.animation;
-        if (animation) {
-          var animStyles = self._getAnimationStyles(animation);
-          var noticeEl = container.querySelector("[data-swn]") || container;
-          if (animStyles.exit) {
-            self.applyStyles(noticeEl, animStyles.exit);
-          }
-          var exitDuration = animation.duration || 200;
-          setTimeout(function () {
-            if (overlay && overlay.parentNode) overlay.remove();
-            if (container.parentNode) container.remove();
-          }, exitDuration);
-        } else {
-          if (overlay && overlay.parentNode) overlay.remove();
-          if (container.parentNode) container.remove();
-        }
-
-        self._activeOverlays = self._activeOverlays.filter(function (item) { return item.container !== container; });
-
-        if (!isToast) {
-          unlockBodyScroll();
-          if (previousActiveElement && typeof previousActiveElement.focus === "function") {
-            try {
-              previousActiveElement.focus();
-            } catch (e) {}
-          }
-        }
-
-        if (isToast) {
-          self._repositionToasts(currentOptions.position);
-        }
-
-        self._dispatchEvent(container, "swn:close", { type: type });
-
-        if (typeof currentOptions.onClose === "function") {
-          currentOptions.onClose();
-        }
-      };
-
-      var handleKeyDown;
-      if (!isToast) {
-        handleKeyDown = function (e) {
-          var isTabPressed = e.key === "Tab" || e.keyCode === 9;
-          var isEscPressed = e.key === "Escape" || e.keyCode === 27;
-
-          if (isEscPressed) {
-            dismiss("esc");
-            return;
-          }
-
-          if (!isTabPressed) return;
-
-          if (e.shiftKey) {
-            if (document.activeElement === firstFocusableElement) {
-              lastFocusableElement.focus();
-              e.preventDefault();
-            }
-          } else {
-            if (document.activeElement === lastFocusableElement) {
-              firstFocusableElement.focus();
-              e.preventDefault();
-            }
-          }
-        };
-
-        activeNotice.handleKeyDown = handleKeyDown;
-        document.addEventListener("keydown", handleKeyDown);
-      }
-
-      if (okButton && !isToast) {
-        okButton.addEventListener("click", function () {
-          handleConfirm();
-          self._dispatchEvent(container, "swn:confirm", { type: type });
-        });
-      }
-
-      if (cancelButton) {
-        cancelButton.addEventListener("click", function () {
-          dismiss("cancel");
-          self._dispatchEvent(container, "swn:cancel", { type: type });
-        });
-      }
-
-      if (closeButton) {
-        closeButton.addEventListener("click", function () {
-          dismiss("close");
-        });
-      }
-
-      if (inputElement && (type === "prompt")) {
-        inputElement.addEventListener("keydown", function (e) {
-          if (e.key === "Enter" || e.keyCode === 13) {
-            if (inputElement.tagName === "TEXTAREA") return;
-            e.preventDefault();
-            handleConfirm();
-          }
-        });
-      }
-
-      if (currentOptions.closeOnOverlayClick && overlay) {
-        overlay.addEventListener("click", function (e) {
-          if (e.target === overlay || e.target.hasAttribute("data-swn-overlay")) {
-            dismiss("overlay");
-          }
-        });
-      }
-
-      if (currentOptions.timer && currentOptions.timer > 0) {
-        var timerDuration = currentOptions.timer;
-        var startTimer = Date.now();
-        var remainingTime = timerDuration;
-
-        if (timerBarElement && currentOptions.timerProgressBar) {
-          timerBarElement.classList.add("swn-timer-active");
-          timerBarElement.style.transition = "none";
-          timerBarElement.style.width = "100%";
-          requestAnimationFrame(function () {
-            timerBarElement.style.transition = "width " + timerDuration + "ms linear";
-            timerBarElement.style.width = "0%";
-          });
-        }
-
-        activeNotice.timerId = setTimeout(function () {
-          if (!resolved) {
-            dismiss("timer");
-          }
-        }, timerDuration);
-
-        activeNotice.pauseTimer = function () {
-          if (activeNotice.timerId) {
-            clearTimeout(activeNotice.timerId);
-            activeNotice.timerId = null;
-            remainingTime -= (Date.now() - startTimer);
-          }
-          if (timerBarElement && currentOptions.timerProgressBar) {
-            var computedWidth = getComputedStyle(timerBarElement).width;
-            timerBarElement.style.transition = "none";
-            timerBarElement.style.width = computedWidth;
-          }
-        };
-
-        activeNotice.resumeTimer = function () {
-          startTimer = Date.now();
-          if (timerBarElement && currentOptions.timerProgressBar && remainingTime > 0) {
-            timerBarElement.style.transition = "width " + remainingTime + "ms linear";
-            requestAnimationFrame(function () {
-              timerBarElement.style.width = "0%";
-            });
-          }
-          activeNotice.timerId = setTimeout(function () {
-            if (!resolved) {
-              dismiss("timer");
-            }
-          }, remainingTime);
-        };
-
-        var hoverTarget = isToast ? container : (container.querySelector("[data-swn]") || container);
-        hoverTarget.addEventListener("mouseenter", function () {
-          if (activeNotice.pauseTimer) activeNotice.pauseTimer();
-        });
-        hoverTarget.addEventListener("mouseleave", function () {
-          if (activeNotice.resumeTimer) activeNotice.resumeTimer();
-        });
-      }
-
-      if (currentOptions.animation) {
-        var animStyles2 = self._getAnimationStyles(currentOptions.animation);
-        var noticeEl2 = container.querySelector("[data-swn]") || container;
-        if (animStyles2.enter) {
-          self.applyStyles(noticeEl2, animStyles2.enter);
-          requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-              self.applyStyles(noticeEl2, animStyles2.active || {});
-            });
-          });
-        }
-      }
-
-      if (!isToast) {
-        if (type === "prompt" || (inputElement && type === "prompt")) {
-          inputElement.focus();
-          if (inputElement.select) inputElement.select();
-        } else if (firstFocusableElement) {
-          firstFocusableElement.focus();
-        }
-      }
-
-      self._dispatchEvent(container, "swn:open", { type: type });
-
-      if (typeof currentOptions.onOpen === "function") {
-        currentOptions.onOpen();
-      }
-    });
-  }
-
-  _repositionToasts(position) {
-    var toastsAtPosition = this._activeOverlays.filter(function (item) {
-      return item.type === "toast" && item.currentOptions.position === position;
-    });
-
-    var offset = 0;
-    for (var i = 0; i < toastsAtPosition.length; i++) {
-      var item = toastsAtPosition[i];
-      var rect = item.container.getBoundingClientRect();
-      var toastStyles = this._getToastPositionStyles(position, offset);
-
-      var isTop = getStackBaseline(position) === "top";
-      var currentTransform = item.container.style.transform || "";
-
-      if (isTop || position === "left" || position === "right") {
-        item.container.style.top = toastStyles.top || "";
-        item.container.style.bottom = toastStyles.bottom || "";
-      } else {
-        item.container.style.bottom = toastStyles.bottom || "";
-        item.container.style.top = toastStyles.top || "";
-      }
-
-      if (toastStyles.left) item.container.style.left = toastStyles.left;
-      if (toastStyles.right) item.container.style.right = toastStyles.right;
-
-      var h = rect.height > 0 ? rect.height : 60;
-      offset += h + 8;
-    }
-  }
-
-  _dispatchEvent(element, eventName, detail) {
-    var event;
-    if (typeof CustomEvent === "function") {
-      event = new CustomEvent(eventName, {
-        bubbles: true,
-        detail: detail || {},
-      });
-    } else {
-      event = document.createEvent("CustomEvent");
-      event.initCustomEvent(eventName, true, true, detail || {});
-    }
-    try {
-      element.dispatchEvent(event);
-    } catch (e) {}
-  }
-
-  destroy() {
-    for (var i = 0; i < this._activeOverlays.length; i++) {
-      var item = this._activeOverlays[i];
-      var isToast = item.type === "toast";
-
-      item.resolve(createResult(false, item.type === "prompt" ? null : item.type === "confirm" ? false : undefined));
-
-      if (item.handleKeyDown) {
-        document.removeEventListener("keydown", item.handleKeyDown);
-      }
-
-      if (item.timerId) {
+      const finalize = (result, reason, immediate = false, error) => {
+        if (item.closing) { if (immediate) finish(); return; }
+        item.closing = true;
+        finalResult = result;
+        finalError = error;
         clearTimeout(item.timerId);
+        for (const id of item.frames) doc.defaultView.cancelAnimationFrame(id);
+        item.frames.clear();
+        item.resizeObserver?.disconnect();
+        if (reason === 'cancel') this._dispatchEvent(container, 'swn:cancel', { type });
+        if (animation && animation.duration > 0 && !immediate) {
+          this.applyStyles(notice, this._getAnimationStyles(animation).exit);
+          item.exitTimer = setTimeout(finish, animation.duration);
+        } else finish();
+      };
+      const dismissed = () => createResult(false, type === 'prompt' ? null : type === 'confirm' ? false : undefined);
+      item.dismiss = (reason, immediate = false) => finalize(dismissed(), reason, immediate);
+      const showValidation = error => {
+        if (item.closing) return;
+        item.pending = false;
+        if (ok) { ok.disabled = false; ok.textContent = options.buttonText; }
+        container.removeAttribute('aria-busy');
+        if (validation) {
+          validation.textContent = error?.message || String(error ?? 'Validation failed.');
+          validation.hidden = false;
+          validation.style.display = 'block';
+        }
+        input?.setAttribute('aria-invalid', 'true');
+      };
+      const confirm = () => {
+        if (item.closing || item.pending || (!isToast && topModal(state) !== item)) return;
+        item.pending = true;
+        this._dispatchEvent(container, 'swn:confirm', { type });
+        if (item.closing) return;
+        if (type === 'prompt' && !input.checkValidity()) { showValidation(new Error(input.validationMessage)); return; }
+        input?.removeAttribute('aria-invalid');
+        if (validation) { validation.textContent = ''; validation.hidden = true; }
+        const value = type === 'prompt' ? input.value : type === 'confirm' ? true : undefined;
+        if (type !== 'prompt' || !options.preConfirm) { finalize(createResult(true, value), 'confirm'); return; }
+        let validated;
+        try { validated = options.preConfirm(value); } catch (error) { showValidation(error); return; }
+        if (item.closing) return;
+        if (validated && typeof validated.then === 'function') {
+          if (ok) { ok.disabled = true; ok.textContent = '...'; }
+          container.setAttribute('aria-busy', 'true');
+          Promise.resolve(validated).then(result => {
+            if (!item.closing) finalize(createResult(true, result === undefined ? value : result), 'confirm');
+          }, showValidation);
+        } else finalize(createResult(true, validated === undefined ? value : validated), 'confirm');
+      };
+
+      try {
+        if (!isToast && !topModal(state)) state.returnFocus = item.previousActiveElement;
+        this._activeOverlays.push(item);
+        state.notices.push(item);
+        if (overlay) { overlay.appendChild(container); doc.body.appendChild(overlay); }
+        else doc.body.appendChild(container);
+        if (!isToast) {
+          listen(doc, 'keydown', event => {
+            if (topModal(state) !== item || event.defaultPrevented) return;
+            if (event.key === 'Escape') { event.preventDefault(); if (!item.closing) item.dismiss('esc'); }
+            if (event.key !== 'Tab') return;
+            const candidates = focusables(container);
+            const first = candidates[0] || container;
+            const last = candidates[candidates.length - 1] || container;
+            if (!candidates.length || !container.contains(doc.activeElement) || (event.shiftKey && doc.activeElement === first) || (!event.shiftKey && doc.activeElement === last) || doc.activeElement === container) {
+              event.preventDefault(); (event.shiftKey ? last : first).focus();
+            }
+          });
+          listen(doc, 'focusin', event => {
+            if (topModal(state) !== item) return;
+            if (container.contains(event.target)) item.lastFocused = event.target;
+            else focusNotice(item);
+          });
+          if (options.closeOnOverlayClick) listen(overlay, 'click', event => {
+            if (topModal(state) === item && (event.target === overlay || event.target.hasAttribute('data-swn-overlay'))) item.dismiss('overlay');
+          });
+        }
+        if (ok && !isToast) listen(ok, 'click', confirm);
+        const cancel = container.querySelector('[data-swn-cancel]');
+        if (cancel) listen(cancel, 'click', () => item.dismiss('cancel'));
+        const close = container.querySelector('[data-swn-close]');
+        if (close) listen(close, 'click', () => item.dismiss('close'));
+        if (input && type === 'prompt') listen(input, 'keydown', event => {
+          if (event.key === 'Enter' && !event.isComposing && input.tagName !== 'TEXTAREA') { event.preventDefault(); confirm(); }
+        });
+        if (animation) {
+          const styles = this._getAnimationStyles(animation);
+          this.applyStyles(notice, styles.enter);
+          frame(() => frame(() => this.applyStyles(notice, styles.active)));
+        }
+        syncModals(doc, state);
+        repositionToasts(state);
+        if (isToast) {
+          if (doc.defaultView.ResizeObserver) {
+            item.resizeObserver = new doc.defaultView.ResizeObserver(() => repositionToasts(state));
+            item.resizeObserver.observe(container);
+          }
+          listen(doc.defaultView, 'resize', () => repositionToasts(state));
+        }
+        if (options.timer > 0) {
+          let remaining = options.timer;
+          let started = 0;
+          let hovered = false;
+          let focused = false;
+          const resume = () => {
+            if (item.closing || item.timerId !== null || hovered || focused) return;
+            started = Date.now();
+            item.timerId = setTimeout(() => item.dismiss('timer'), remaining);
+            if (bar && options.timerProgressBar) frame(() => { if (item.timerId !== null) { bar.style.transition = `width ${remaining}ms linear`; bar.style.width = '0%'; } });
+          };
+          const pause = () => {
+            if (item.timerId === null) return;
+            clearTimeout(item.timerId); item.timerId = null;
+            remaining = Math.max(0, remaining - (Date.now() - started));
+            if (bar && options.timerProgressBar) {
+              bar.style.transition = 'none';
+              bar.style.width = `${remaining / options.timer * 100}%`;
+            }
+          };
+          if (bar && options.timerProgressBar) { bar.classList.add('swn-timer-active'); bar.style.width = '100%'; }
+          item.pauseTimer = pause; item.resumeTimer = resume;
+          listen(notice, 'mouseenter', () => { hovered = true; pause(); });
+          listen(notice, 'mouseleave', () => { hovered = false; resume(); });
+          listen(notice, 'focusin', () => { focused = true; pause(); });
+          listen(notice, 'focusout', event => { if (!notice.contains(event.relatedTarget)) { focused = false; resume(); } });
+          // Initial modal focus does not pause an auto-dismiss timer until focus moves.
+          resume();
+        }
+        this._dispatchEvent(container, 'swn:open', { type });
+        if (!item.closing) options.onOpen?.();
+      } catch (error) {
+        finalize(dismissed(), 'error', true, error);
       }
-
-      if (item.overlay && item.overlay.parentNode) item.overlay.remove();
-      if (item.container.parentNode) item.container.remove();
-
-      if (typeof item.currentOptions.onClose === "function") {
-        item.currentOptions.onClose();
-      }
-
-      if (!isToast) {
-        unlockBodyScroll();
-      }
-    }
-
-    this._activeOverlays = [];
+    });
   }
 
-  getOptionsFromElement(element) {
-    var options = {};
-    var dataset = element.dataset;
+  _repositionToasts() { if (typeof document !== 'undefined') repositionToasts(stateFor(document)); }
+  _dispatchEvent(node, name, detail) { node.dispatchEvent(new node.ownerDocument.defaultView.CustomEvent(name, { bubbles: true, detail })); }
+  destroy() {
+    this._queueGeneration++;
+    for (const item of [...this._activeOverlays].reverse()) item.dismiss('destroy', true);
+  }
 
-    if (dataset.swnTitle) options.titleText = dataset.swnTitle;
-    if (dataset.swnOkText) options.buttonText = dataset.swnOkText;
-    if (dataset.swnCancelText) options.cancelText = dataset.swnCancelText;
-    if (dataset.swnTemplate) options.template = dataset.swnTemplate;
-    if (dataset.swnPosition) options.position = dataset.swnPosition;
-    if (dataset.swnBgColor) options.bgColor = dataset.swnBgColor;
-    if (dataset.swnBgOpacity) options.bgOpacity = parseFloat(dataset.swnBgOpacity);
-    if (dataset.swnBgBlur) options.bgBlur = parseInt(dataset.swnBgBlur, 10);
-    if (dataset.swnZIndex) options.zIndex = parseInt(dataset.swnZIndex, 10);
-    if (dataset.swnCloseOnOverlayClick) options.closeOnOverlayClick = dataset.swnCloseOnOverlayClick === "true";
-    if (dataset.swnShowCloseButton) options.showCloseButton = dataset.swnShowCloseButton === "true";
-    if (dataset.swnHtml) options.html = dataset.swnHtml === "true";
-    if (dataset.swnTimer) options.timer = parseInt(dataset.swnTimer, 10);
-    if (dataset.swnTimerProgressBar) options.timerProgressBar = dataset.swnTimerProgressBar === "true";
-    if (dataset.swnInputType) options.inputType = dataset.swnInputType;
-    if (dataset.swnAnimation) {
-      try {
-        options.animation = JSON.parse(dataset.swnAnimation);
-      } catch (e) {
-        options.animation = { type: dataset.swnAnimation };
-      }
+  getOptionsFromElement(node) {
+    const options = {};
+    const strings = { swnTitle: 'titleText', swnOkText: 'buttonText', swnCancelText: 'cancelText', swnTemplate: 'template', swnPosition: 'position', swnBgColor: 'bgColor', swnInputType: 'inputType' };
+    const numbers = { swnBgOpacity: 'bgOpacity', swnBgBlur: 'bgBlur', swnZIndex: 'zIndex', swnTimer: 'timer' };
+    const booleans = { swnCloseOnOverlayClick: 'closeOnOverlayClick', swnShowCloseButton: 'showCloseButton', swnHtml: 'html', swnTimerProgressBar: 'timerProgressBar' };
+    for (const [key, option] of Object.entries(strings)) if (node.dataset[key] !== undefined) options[option] = node.dataset[key];
+    for (const [key, option] of Object.entries(numbers)) if (node.dataset[key] !== undefined) options[option] = node.dataset[key].trim() ? Number(node.dataset[key]) : NaN;
+    for (const [key, option] of Object.entries(booleans)) if (node.dataset[key] !== undefined) options[option] = node.dataset[key] === 'true';
+    if (node.dataset.swnAnimation !== undefined) {
+      try { options.animation = JSON.parse(node.dataset.swnAnimation); } catch { options.animation = { type: node.dataset.swnAnimation }; }
     }
-
     return options;
   }
 
   install() {
-    var self = this;
-
-    window.alert = async function (message) {
-      var options = {};
-      if (document.activeElement && document.activeElement.hasAttribute("data-swn-trigger")) {
-        options = self.getOptionsFromElement(document.activeElement);
-      }
-      await self.show(message, options);
+    const doc = requireDocument();
+    const state = stateFor(doc);
+    if (this._installation) return;
+    const win = doc.defaultView;
+    if (!state.owners.length) {
+      state.originals = { alert: win.alert, confirm: win.confirm, prompt: win.prompt };
+      // Safari does not focus buttons on pointer clicks. Capture the trigger for
+      // the current event rather than relying exclusively on activeElement.
+      state.captureTrigger = event => {
+        const trigger = event.composedPath().find(node => node?.hasAttribute?.('data-swn-trigger'));
+        state.trigger = trigger ? { node: trigger, event } : null;
+        win.clearTimeout(state.triggerTimer);
+        state.triggerTimer = win.setTimeout(() => { state.trigger = null; state.triggerTimer = null; }, 0);
+      };
+      doc.addEventListener('click', state.captureTrigger, true);
+    }
+    const getOptions = () => {
+      const trigger = state.trigger?.event.eventPhase ? state.trigger.node : doc.activeElement?.closest('[data-swn-trigger]');
+      return trigger ? this.getOptionsFromElement(trigger) : {};
     };
-
-    window.confirm = async function (message) {
-      var options = {};
-      if (document.activeElement && document.activeElement.hasAttribute("data-swn-trigger")) {
-        options = self.getOptionsFromElement(document.activeElement);
-      }
-      return await self.showConfirm(message, options);
+    const handlers = {
+      alert: message => this.show(message, getOptions()),
+      confirm: message => this.showConfirm(message, getOptions()),
+      prompt: (message, defaultValue = '') => this.showPrompt(message, { defaultValue, ...getOptions() }),
     };
-
-    window.prompt = async function (message, defaultValue) {
-      var options = {};
-      if (document.activeElement && document.activeElement.hasAttribute("data-swn-trigger")) {
-        options = self.getOptionsFromElement(document.activeElement);
-      }
-      return await self.showPrompt(message, {
-        defaultValue: defaultValue !== undefined ? defaultValue : "",
-        ...options,
-      });
-    };
+    const installation = { owner: this, handlers, doc };
+    state.owners.push(installation);
+    Object.assign(win, handlers);
+    this._installation = installation;
   }
 
   uninstall() {
-    window.alert = this.originalAlert;
-    window.confirm = this.originalConfirm;
-    window.prompt = this.originalPrompt;
+    const installation = this._installation;
+    if (!installation) return;
+    const state = stateFor(installation.doc);
+    state.owners = state.owners.filter(item => item !== installation);
+    const replacement = state.owners[state.owners.length - 1]?.handlers || state.originals;
+    for (const key of ['alert', 'confirm', 'prompt']) {
+      if (installation.doc.defaultView[key] === installation.handlers[key]) installation.doc.defaultView[key] = replacement[key];
+    }
+    if (!state.owners.length) {
+      state.originals = null;
+      installation.doc.removeEventListener('click', state.captureTrigger, true);
+      installation.doc.defaultView.clearTimeout(state.triggerTimer);
+      state.captureTrigger = null; state.trigger = null; state.triggerTimer = null;
+    }
+    this._installation = null;
   }
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  var templates = document.querySelectorAll("template");
-  var hasValidTemplate = false;
+function autoInitialize() {
+  if (typeof document === 'undefined' || !document.body) return;
+  const state = stateFor(document);
+  if (state.autoInstance || !document.querySelector('[data-swn-trigger]')) return;
+  if (!Array.from(document.querySelectorAll('template')).some(template => template.content.querySelector('[data-swn]'))) return;
+  state.autoInstance = new SWN();
+  // Explicit integrations retain ownership if they were installed before DOM ready.
+  if (!state.owners.length) state.autoInstance.install();
+}
 
-  for (var i = 0; i < templates.length; i++) {
-    if (templates[i].content.querySelector("[data-swn]")) {
-      hasValidTemplate = true;
-      break;
-    }
-  }
-
-  var triggers = document.querySelectorAll("[data-swn-trigger]");
-
-  if (hasValidTemplate && triggers.length > 0) {
-    var swn = new SWN();
-    swn.install();
-  }
-});
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', autoInitialize, { once: true });
+  else autoInitialize();
+}
 
 export default SWN;

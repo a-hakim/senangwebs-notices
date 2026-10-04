@@ -1,2 +1,6 @@
 node_modules/
-dist/
+.cache/
+coverage/
+playwright-report/
+test-results/
+*.tgz

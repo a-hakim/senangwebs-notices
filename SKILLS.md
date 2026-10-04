@@ -1,7 +1,7 @@
 ---
 name: senangwebs-notices
 description: Custom alert, confirm, prompt, toast, and queued dialogs with a template-driven API.
-version: 2.0.1
+version: 2.0.2
 package: senangwebs-notices
 ---
 
@@ -11,9 +11,9 @@ package: senangwebs-notices
 
 - **Purpose**: Replace native dialogs and display modal notices or stackable toasts
 - **Source**: `src/js/swn.js` and `src/css/swn.css`
-- **Build output**: `dist/swn.js`, `dist/swn.min.js`, `dist/swn.css`, `dist/swn.min.css`
+- **Build output**: UMD `dist/swn.js` / `dist/swn.min.js`, ESM `dist/swn.mjs`, CommonJS `dist/swn.cjs`, CSS, source maps, and TypeScript declarations
 - **Dependencies**: None at runtime
-- **Validation**: `npm run build`; there is currently no automated test suite
+- **Validation**: `npm run build`, `npm test`, `npm run test:package`, `npm run test:browser`, and `npm audit --audit-level=high`. Obtain user permission before running unit tests unless already authorized in the session.
 
 ## Workflow
 
@@ -103,6 +103,9 @@ swn.destroy();   // close notices owned by this instance
 - Keep modal scroll locking global across instances; toasts must not lock body scrolling.
 - Restore the original inline `body.style.overflow` after the last modal closes.
 - Keep toast stacking independent for each position.
+- Coordinate ownership across instances and module formats; only the top modal handles keyboard input.
+- Use the shared finalization path for every dismissal, including destruction, and ignore late async validation.
+- Destruction stops existing queues; normal dismissal continues them. Instances remain reusable.
 - A rejected or thrown `preConfirm` must leave the prompt open and show validation text.
 - Preserve focus trapping, Escape dismissal, and focus restoration for modals.
 - Treat `html: true` as trusted-content mode; plain text is the safe default.
@@ -112,6 +115,10 @@ swn.destroy();   // close notices owned by this instance
 
 ```bash
 npm run build
+npm test
+npm run test:package
+npm run test:browser
+npm audit --audit-level=high
 ```
 
 Also exercise the affected flow in `examples/index.html` or `examples/simple.html` for DOM behavior that the build cannot validate.
